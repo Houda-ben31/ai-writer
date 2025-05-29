@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>أداة الكتابة الذكية - AI Writer</title>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <meta name="description" content="أداة كتابة المقالات الذكية تساعدك على إنشاء مقالات عربية احترافية بسهولة باستخدام تقنيات الذكاء الاصطناعي من مدرسة الذكاء الاصطناعي.">
+    <meta name="robots" content="index, follow">
+<meta property="og:title" content="أداة كتابة المقالات الذكية - AI Writer">
+<meta property="og:description" content="أنشئ مقالات عربية احترافية باستخدام الذكاء الاصطناعي.">
+<meta property="og:image" content="رابط صورة الأداة">
+<meta property="og:url" content="رابط موقعك">
+<meta name="twitter:card" content="summary_large_image">
+
+
+ <link rel="stylesheet" href="style.css">
+
+
+</head>
+<body>
+
+<div class="g_id_signin" data-type="standard"></div>
+
+    <div class="container">
+  <header class="header">
+  <div class="logo-container">
+    <a href="https://www.youtube.com/@ribhonline31" class="logo-link" target="_blank" rel="noopener noreferrer">
+      <img src="https://blogger.googleusercontent.com/img/a/AVvXsEgbcrY_UmYFuOqq4ZcaVj0Y1LRoLqdpJ3L847s_utvBOcHXiGmc6Pjn7tpbAZI-vwz7eUxrCLs-MadSR2rzdl_9eo0F45eoJbl6EB0ux6oZQNHFuE1l58y2R522jPMbHI9UZWtj8TdPfDLos3v3zHrhb4Swr4EYYL5ThfPCmjsZ26jJuJrlIJJvoiXida4=s250" alt="شعار أداة كتابة المقالات الذكية من مدرسة الذكاء الاصطناعي" class="logo">
+    </a>
+  </div>
+<h1>أنشئ مقالات عربية احترافية باستخدام أداة الكتابة الذكية - AI Writer</h1>
+</header>
+
+       <div id="apiSection">
+  <form onsubmit="return false;" class="input-group">
+    <label>مفتاح API الخاص بك</label>
+    <input type="password" id="apiKey" placeholder="أدخل مفتاح Gemini API">
+    <button class="generate-btn mt-2" onclick="saveAPIKey()">حفظ المفتاح</button>
+  </form>
+</div>
+
+
+
+
+        <div id="mainUI" class="hidden">
+            <div class="category-grid">
+                <div class="category-card" data-category="1">
+                    <i class="fas fa-futbol fa-2x"></i>
+                    <h3>مقالات رياضية</h3>
+                </div>
+                <div class="category-card" data-category="2">
+                    <i class="fas fa-utensils fa-2x"></i>
+                    <h3>وصفات طعام</h3>
+                </div>
+                <div class="category-card" data-category="3">
+                    <i class="fas fa-plane fa-2x"></i>
+                    <h3>أماكن سياحية</h3>
+                </div>
+                <div class="category-card" data-category="4">
+                    <i class="fas fa-edit fa-2x"></i>
+                    <h3>موضوع مخصص</h3>
+                </div>
+            </div>
+
+            <div class="input-group">
+                <div id="customTopic" class="hidden">
+                    <label>عنوان المقال المخصص</label>
+                    <textarea id="customTopicInput" rows="2" placeholder="أدخل عنوان المقال المطلوب..."></textarea>
+                </div>
+                
+                <label>عدد المقالات</label>
+                <input type="number" id="articleCount" value="1" min="1" max="50">
+            </div>
+
+            <div class="progress-container">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+
+            <div id="statusBar" class="alert"></div>
+
+            <button class="generate-btn" onclick="generateArticles()">
+                <i class="fas fa-rocket"></i>
+                إنشاء المقالات الآن
+            </button>
+        </div>
+    </div>
+
+    <div id="wordpressLoginModal" class="modal hidden">
+  <div class="modal-content">
+    <h3>تسجيل الدخول إلى WordPress</h3>
+    <input type="text" id="wpUrl" placeholder="رابط الموقع (مثال: https://example.com)">
+    <input type="text" id="wpUsername" placeholder="اسم المستخدم">
+    <input type="password" id="wpPassword" placeholder="كلمة مرور التطبيق">
+    <button id="confirmWpLogin">متابعة</button>
+    <button onclick="closeWpModal()">إلغاء</button>
+  </div>
+</div>
+
+    
+    <script>
+
+        let currentCategory = '1';
+        let apiKey = localStorage.getItem('gemini_api_key') || '';
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('.category-card').forEach(card => {
+                card.addEventListener('click', () => {
+                    document.querySelectorAll('.category-card').forEach(c => c.classList.remove('active'));
+                    card.classList.add('active');
+                    currentCategory = card.dataset.category;
+                    document.getElementById('customTopic').classList.toggle('hidden', currentCategory !== '4');
+                });
+            });
+            
+            if(apiKey) toggleMainUI();
+        });
+
+        function saveAPIKey() {
+            apiKey = document.getElementById('apiKey').value.trim();
+            if(!apiKey) return showError('الرجاء إدخال مفتاح API صحيح');
+            localStorage.setItem('gemini_api_key', apiKey);
+            toggleMainUI();
+            showSuccess('تم حفظ المفتاح بنجاح!');
+        }
+
+        function toggleMainUI() {
+            document.getElementById('apiSection').classList.add('hidden');
+            document.getElementById('mainUI').classList.remove('hidden');
+        }
+          function validateInputs(topic, count) {
+            if(!apiKey) {
+                showError('الرجاء إدخال مفتاح API أولاً');
+                return false;
+            }
+            if(count < 1 || count > 50) {
+                showError('الرجاء إدخال عدد بين 1 و 50');
+                return false;
+            }
+            if(currentCategory === '4' && !topic) {
+                showError('الرجاء إدخال عنوان المقال المخصص');
+                return false;
+            }
+            return true;
+        }
+
+async function handleBloggerPublishing(title, content, index) {
+  try {
+    // التحقق من حالة تسجيل الدخول
+    const res = await fetch('http://localhost:3000/auth/status', {
+      credentials: 'include'
+    });
+    const status = await res.json();
+
+    if (!status.loggedIn) {
+      // حفظ المقال في localStorage للعودة إليه بعد تسجيل الدخول
+      localStorage.setItem('pendingPost', JSON.stringify({ title, content }));
+
+      // إعادة التوجيه لتسجيل الدخول
+      window.location.href = "http://localhost:3000/auth";
+      return null;
+    }
+
+    // تم تسجيل الدخول، متابعة النشر
+    const response = await fetch('http://localhost:3000/publish', {
+      method: 'POST',
+      credentials: 'include', // ضروري لإرسال الكوكيز
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ title, content }),
+    });
+
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({}));
+      console.error('خطأ في النشر:', errData.error || response.statusText);
+      return null;
+    }
+
+    const data = await response.json();
+    return data.url;
+
+  } catch (error) {
+    console.error('خطأ في الاتصال بالخادم:', error);
+    return null;
+  }
+}
+
+async function publishToWordPress(index) {
+  const article = articles[index]; // تأكد أن `articles` تحتوي على قائمة المقالات
+  try {
+    const res = await fetch('http://localhost:3000/publish-wordpress', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: article.title,
+        content: article.content,
+        ...wpCredentials
+      }),
+    });
+
+    const data = await res.json();
+    if (res.ok) {
+      alert('✅ تم نشر المقال في WordPress: ' + data.url);
+    } else {
+      alert('❌ فشل في النشر: ' + data.error);
+    }
+  } catch (err) {
+    console.error('خطأ في الاتصال بـ WordPress:', err);
+    alert('❌ خطأ في الاتصال بالخادم');
+  }
+}
+
+async function generateArticles() {
+  const articlesContainer = document.getElementById('articlesOutput');
+
+  try {
+    const res = await fetch('http://localhost:3000/auth/status', { credentials: 'include' });
+    const contentType = res.headers.get('content-type') || '';
+    if (!res.ok || !contentType.includes('application/json')) {
+      throw new Error('❌ لم يتم تلقي استجابة JSON من الخادم');
+    }
+
+    const data = await res.json();
+    const isLoggedIn = data.loggedIn;
+
+    const count = parseInt(document.getElementById('articleCount').value) || 1;
+    const topic = currentCategory === '4'
+      ? document.getElementById('customTopicInput').value.trim()
+      : getDefaultTopic();
+
+    if (!validateInputs(topic, count)) return;
+
+    showLoading();
+    resetProgress();
+    articlesContainer.style.display = 'none';
+    articlesContainer.innerHTML = '';
+
+    const zip = new JSZip();
+
+    for (let i = 0; i < count; i++) {
+      const stepWeight = 100 / count;
+
+      updateProgress(i * stepWeight + 5);
+
+      try {
+        const content = await fetchArticle(topic, currentCategory);
+        updateProgress(i * stepWeight + 20);
+
+        const articleBodyContent = content;
+        const metaDescription = content.substring(0, 150).replace(/\n/g, ' ') + '...';
+        const keywords = extractKeywords(topic);
+
+        const htmlContent = articleBodyContent;
+        const safeFileName = sanitizeFileName(`مقال_${i + 1}_${topic}`);
+        zip.file(`${safeFileName}.txt`, htmlContent);
+
+        const articleBlob = new Blob([htmlContent], { type: 'text/html' });
+        const articleUrl = URL.createObjectURL(articleBlob);
+
+        updateProgress(i * stepWeight + 90);
+        displayArticleInPage(articlesContainer, i, topic, articleBodyContent, articleUrl, safeFileName, isLoggedIn);
+
+      } catch (articleError) {
+        console.warn(`❌ فشل إنشاء المقال رقم ${i + 1}:`, articleError.message);
+        showError(`⚠️ لم يتم توليد المقال رقم ${i + 1} بسبب خطأ في الاتصال أو التوليد.`);
+        continue; // استمر لباقي المقالات
+      }
+
+      // 💤 تأخير بسيط لتفادي الضغط على API
+      await sleep(500); // نصف ثانية، يمكنك زيادته لو واجهت rate limit
+    }
+
+    updateProgress(100);
+    showSuccess(`✅ تم إنشاء ${count} مقال${count > 1 ? 'ات' : ''} بنجاح!`);
+
+     const zipBlob = await zip.generateAsync({ type: 'blob' });
+    const zipUrl = URL.createObjectURL(zipBlob);
+    const zipLink = document.createElement('a');
+    zipLink.href = zipUrl;
+    zipLink.download = `مقالات_${sanitizeFileName(topic)}.zip`;
+    zipLink.click();
+
+    articlesContainer.style.display = 'flex';
+
+  } catch (error) {
+    showError(error.message || 'حدث خطأ أثناء إنشاء المقالات');
+    articlesContainer.style.display = 'none';
+   } finally {
+    setTimeout(resetProgress, 1500);
+  }
+}
+
+
+
+  async function fetchArticle(topic, currentCategory) {
+  let article = '';
+  let lastText = '';
+  let wordCount = 0;
+  const targetWords = 2000;
+  const maxTries = 5;
+  let tries = 0;
+
+  function stripHTML(html) {
+    const tmp = document.createElement("DIV");
+    tmp.innerHTML = html;
+    return tmp.textContent || tmp.innerText || "";
+  }
+
+  while (wordCount < targetWords && tries < maxTries) {
+    tries++;
+
+    const isLastTry = tries === maxTries || wordCount > targetWords * 0.85;
+
+   const promptText = lastText && !article.includes('<h2>المصادر</h2>')
+  ? `استمر في كتابة المقال التالي حول "${topic}" بدءًا من: "${lastText.slice(-500)}"` + // زودنا القطعة هنا
+    (isLastTry ? "\n\nيرجى إنهاء المقال بإضافة قسم <h2>المصادر</h2> يحتوي على روابط موثوقة بصيغة HTML." : "")
+  : generatePrompt(topic, currentCategory);
+
+
+    const response = await fetch(
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + apiKey,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            role: "user",
+            parts: [{ text: promptText }]
+          }],
+          generationConfig: {
+            temperature: 0.7,
+            maxOutputTokens: 4000 // زيادة عدد التوكنز
+          }
+        })
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error?.message || 'فشل الاتصال بالخادم');
+    }
+
+    const data = await response.json();
+
+    if (!data.candidates || !data.candidates[0]?.content?.parts?.[0]?.text) {
+      throw new Error('❌ استجابة غير صالحة من API');
+    }
+
+    const newPart = data.candidates[0].content.parts[0].text;
+
+    article += newPart + "\n";
+    
+    // تحديث عد الكلمات بعد تنقية النص من الوسوم
+    wordCount = stripHTML(article).trim().split(/\s+/).length;
+    
+    lastText = newPart;
+
+    // تحقق مما إذا تمت إضافة قسم "المصادر"
+    if (
+      (article.includes('<h2>المصادر</h2>') && article.includes('<ul>') && article.includes('<li>')) ||
+      newPart.trim().endsWith('</html>') ||
+      (isLastTry && newPart.trim().endsWith('.'))
+    ) {
+      break;
+    }
+  }
+
+  if (wordCount < targetWords) {
+    console.warn(`⚠️ المقال يحتوي فقط على ${wordCount} كلمة بعد ${maxTries} محاولات.`);
+  }
+
+  // تنظيف المقال بعد قسم المصادر (مع الإبقاء على القسم كاملاً)
+  const sourcesIndex = article.indexOf('<h2>المصادر</h2>');
+  if (sourcesIndex !== -1) {
+    const endOfSources = article.indexOf('</ul>', sourcesIndex);
+    if (endOfSources !== -1) {
+      article = article.slice(0, endOfSources + 5); // احتساب طول </ul>
+    }
+  }
+
+  // تنظيف تنسيقات Markdown في بداية النص (مثل ```html أو <html> أو html فقط)
+  article = article.replace(/^(```html|html|<html>)\s*/i, '').trim();
+  article = article.replace(/```/g, '').trim();
+
+  return article;
+}
+
+
+// --- دوال مساعدة لواجهة المستخدم ---
+
+function updateProgress(percentage) {
+  const progressBar = document.getElementById('progressBar');
+  if (progressBar) {
+    progressBar.style.width = `${Math.floor(percentage)}%`;
+  }
+}
+
+function resetProgress() {
+  setTimeout(() => {
+    const progressBar = document.getElementById('progressBar');
+    if (progressBar) {
+      progressBar.style.width = '0%';
+    }
+  }, 1000); // تأخير زمني بعد عرض النتيجة
+}
+
+function showLoading() {
+  const statusBar = document.getElementById('statusBar');
+  if (statusBar) {
+    statusBar.className = 'alert';
+    statusBar.textContent = 'جاري المعالجة... ⏳';
+  }
+}
+
+function showSuccess(message) {
+  const statusBar = document.getElementById('statusBar');
+  if (statusBar) {
+    statusBar.className = 'alert alert-success';
+    statusBar.textContent = message;
+  }
+}
+
+function showError(message) {
+  const statusBar = document.getElementById('statusBar');
+  if (statusBar) {
+    statusBar.className = 'alert alert-error';
+    statusBar.textContent = message;
+  }
+}
+
+function downloadZip(content) {
+  const url = URL.createObjectURL(content);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `المقالات_${new Date().toISOString()}.zip`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function getDefaultTopic(language = 'ar') {
+  const topics = {
+    ar: {
+      '1': [
+        'أفضل الأندية الرياضية العربية',
+         'أفضل لاعبي كرة القدم في العالم العربي',
+      'أشهر مباريات الكلاسيكو في التاريخ',
+      'نصائح للياقة البدنية للمبتدئين',
+        'تاريخ الدوري السعودي وأشهر أنديته',
+        'تحليل لأداء الفرق في الدوري المصري الممتاز'
+      
+      ],
+      '2': [
+        'وصفة كعك العيد التقليدي',
+        'طريقة تحضير الكبسة السعودية',
+         'طريقة عمل المسخن الفلسطيني',
+      'وصفة الكبسة السعودية التقليدية',
+      'أفضل طرق تحضير المعجنات',
+        'أشهى الأطباق الرمضانية'
+      ],
+      '3': [
+        'أجمل المدن السياحية في الخليج',
+        'دليلك لزيارة دبي في 5 أيام',
+              'أجمل الشواطئ في الخليج العربي',
+      'أفضل فنادق دبي للعائلات',
+      'نصائح السفر إلى سلطنة عمان',
+        'أماكن سياحية مخفية في سلطنة عمان'
+      ]
+    },
+    en: {
+      '1': [
+        'Top Arab Sports Clubs',
+        'History of the Saudi Football League',
+        'Performance Analysis of Egyptian League Teams'
+      ],
+      '2': [
+        'Traditional Eid Cookie Recipe',
+        'How to Make Saudi Kabsa',
+        'Most Delicious Ramadan Dishes'
+      ],
+      '3': [
+        'Top Tourist Cities in the Gulf',
+        '5-Day Dubai Travel Guide',
+        'Hidden Travel Gems in Oman'
+      ]
+    }
+  };
+
+  const currentTopics = topics[language]?.[currentCategory];
+  
+  if (!currentTopics || currentTopics.length === 0) {
+    console.warn(`⚠️ لا توجد مواضيع للتصنيف ${currentCategory} أو اللغة ${language}`);
+    return language === 'en' ? 'General article in English' : 'مقال عام باللغة العربية';
+  }
+
+  // اختيار موضوع عشوائي من القائمة
+  const randomIndex = Math.floor(Math.random() * currentTopics.length);
+  return currentTopics[randomIndex];
+}
+
+
+function extractKeywords(topic) {
+  const stopWords = ['هذه', 'الذي', 'التي', 'من', 'عن', 'على', 'في'];
+  return topic
+    .split(' ')
+    .filter(word => word.length > 3 && !stopWords.includes(word))
+    .slice(0, 5)
+    .join(', ');
+}
+
+function generatePrompt(topic, currentCategory) {
+  const keywords = extractKeywords(topic);
+
+  const baseSourcesNote = `- وفي نهاية المقال، أضف قسمًا بعنوان <h2>المصادر</h2> يحتوي على قائمة <ul> بها روابط موثوقة ذات صلة بالموضوع مثل ويكيبيديا أو BBC أو Aljazeera بصيغة: <li><a href="https://example.com">اسم المصدر</a></li>`;
+
+  const prompts = {
+    '1': `اكتب مقالًا رياضيًا احترافيًا لا يقل عن 2000 كلمة حول "${topic}"  منظمة ومتوافقة مع معايير السيو (SEO)، يتضمن:
+- لا تكتب أي فقرة خارج عناصر HTML
+- مقدمة تعريفية بالفكرة
+- عناوين رئيسية وفرعية (h2/h3)
+- كلمات مفتاحية: ${keywords}
+- فقرات منظمة داخل <p>
+- خاتمة واضحة و تشجيع القارئ على التفاعل
+- يجب أن لا تقل المقالة عن 2000 كلمة، لا تختصر ولا تقلل المحتوى
+
+${baseSourcesNote}`,
+
+    '2': `اكتب وصفة مفصلة لا تقل عن 2000 كلمة حول "${topic}"  متوافقة مع السيو، تشمل:
+- لا تكتب أي فقرة خارج عناصر HTML
+- مقدمة تعريفية بالفكرة
+- عناوين رئيسية وفرعية (h2/h3)
+- كلمات مفتاحية: ${keywords}
+- خطوات تحضير مرقمة داخل <ol><li>
+- معلومات غذائية و تشجيع القارئ على التفاعل
+- يجب أن لا تقل المقالة عن 2000 كلمة، لا تختصر ولا تقلل المحتوى
+
+${baseSourcesNote}`,
+
+    '3': `أنشئ دليل سياحي مفصل لا يقل عن 2000 كلمة حول "${topic}"  منظمة، يحتوي على:
+- لا تكتب أي فقرة خارج عناصر HTML
+- مقدمة تعريفية بالفكرة
+- - عناوين رئيسية وفرعية (h2/h3) للمدن والأنشطة
+- كلمات مفتاحية: ${keywords}
+- فقرات داخل <p> قابلة للعرض في Blogger
+- خاتمة قوية وتشجيع القارئ على التفاعل
+- يجب أن لا تقل المقالة عن 2000 كلمة، لا تختصر ولا تقلل المحتوى
+${baseSourcesNote}`,
+
+     '4': `اكتب مقالة عامة منسقة لا تقل عن 2000 كلمة حول "${topic}"، مع:
+- لا تكتب أي فقرة خارج عناصر HTML
+- مقدمة تعريفية بالفكرة
+- عناوين رئيسية وفرعية (h2/h3)
+- كلمات مفتاحية: ${keywords}
+- فقرات واضحة داخل <p>
+- خاتمة قوية تلخص الأفكار وتشجع القارئ على التفاعل
+- يجب أن لا تقل المقالة عن 2000 كلمة، لا تختصر ولا تقلل المحتوى
+${baseSourcesNote}`
+  // نفس الشيء لبقية الفئات...
+};
+
+  if (!currentCategory || !prompts[currentCategory]) {
+    return `اكتب مقالة  منظمة لا تقل عن 2000 كلمة عن "${topic}"، متوافقة مع السيو، تتضمن عناوين وفقرات وصور بصيغة webp.
+${baseSourcesNote}`;
+  }
+
+  return prompts[currentCategory];
+}
+
+
+    </script>
+<div id="articlesOutput" style="display: flex; flex-direction: column;"></div>
+    <script src="script.js"></script>
+
+</body>
+</html>
