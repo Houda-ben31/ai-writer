@@ -22,9 +22,11 @@ const {
 } = process.env;
 
 app.use(cors({
-  origin: 'http://localhost:5500',
+  origin: ['https://bestsitesfor.com', 'capacitor://localhost', 'http://localhost:5500'],
   credentials: true,
 }));
+
+
 
 // ✅ حالة الدخول
 app.get('/auth/status', (req, res) => {
