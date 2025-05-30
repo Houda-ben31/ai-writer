@@ -45,7 +45,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   await checkAuthStatus();
 
   // ثم حاول إعادة نشر مقال معلق إذا وجد
-  const pending = localStorage.getItem('pendingPost');
+  const pending = Storage.getItem('pendingPost');
   if (pending) {
     const { title, content } = JSON.parse(pending);
 
@@ -281,7 +281,7 @@ function downloadAsPDF(fileName, htmlContent) {
 
 async function checkIfLoggedIn() {
   try {
-    const res = await fetch('http://localhost:3000/auth/status', { credentials: 'include' });
+    const res = await fetch('https://ai-writer.onrender.com/auth/status', { credentials: 'include' });
     const data = await res.json();
     return data.loggedIn;
   } catch (err) {
@@ -293,7 +293,7 @@ async function checkIfLoggedIn() {
 
 async function checkAuthStatus() { 
   try {
-    const res = await fetch('http://localhost:3000/auth/status', { credentials: 'include' });
+    const res = await fetch('https://ai-writer.onrender.com/auth/status', { credentials: 'include' });
     const data = await res.json();
     const authSection = document.getElementById('authSection');
 
@@ -309,7 +309,7 @@ async function checkAuthStatus() {
       `;
 
       document.getElementById('loginBtn').onclick = () => {
-        window.location.href = "http://localhost:3000/auth";
+        window.location.href = "https://ai-writer.onrender.com/auth";
       };
     }
   } catch (err) {

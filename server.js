@@ -9,26 +9,29 @@ const path = require('path');
 dotenv.config();
 
 const app = express();
-app.use(express.static('public'));
+
+// إعدادات عامة
 app.use(express.json({ limit: '2mb' }));
 app.use(cookieParser());
 
- 
+// ⚠️ تأكد أن الواجهة الأمامية داخل public
+app.use(express.static(path.join(__dirname, 'public')));
+
+// بيئة الخادم
 const {
-   PORT = 3000,
+  PORT = 3000,
   GOOGLE_CLIENT_ID,
   GOOGLE_CLIENT_SECRET,
   GOOGLE_REDIRECT_URI,
 } = process.env;
 
+// إعداد CORS - عدلي حسب موقعك النهائي
 app.use(cors({
   origin: ['https://bestsitesfor.com', 'capacitor://localhost', 'http://localhost:5500'],
   credentials: true,
 }));
 
-
-
-// ✅ حالة الدخول
+ // ✅ حالة الدخول
 app.get('/auth/status', (req, res) => {
   const token = req.cookies.blogger_token;
   res.json({ loggedIn: !!token });
@@ -67,13 +70,14 @@ app.get('/oauth2callback', async (req, res) => {
       maxAge: 3600 * 1000,
     });
 
+    // ✅ أعيدي التوجيه إلى موقعك الحقيقي (ليس localhost)
     res.send(`
       <html>
         <head><meta charset="UTF-8"><title>تم تسجيل الدخول</title></head>
         <body>
           <p>✅ تم تسجيل الدخول بنجاح! سيتم تحويلك الآن...</p>
           <script>
-            setTimeout(() => window.location.href = 'http://localhost:5500', 1500);
+            setTimeout(() => window.location.href = 'https://bestsitesfor.com', 1500);
           </script>
         </body>
       </html>
@@ -84,21 +88,21 @@ app.get('/oauth2callback', async (req, res) => {
   }
 });
 
-// ✅ نشر مقال
+// ✅ نشر مقال إلى Blogger
 app.post('/publish', async (req, res) => {
   try {
     const { title, content } = req.body;
     const token = req.cookies.blogger_token;
     if (!token) return res.status(401).json({ error: '❌ غير مصرح. قم بتسجيل الدخول أولًا.' });
 
-     const blogsRes = await axios.get('https://www.googleapis.com/blogger/v3/users/self/blogs', {
+    const blogsRes = await axios.get('https://www.googleapis.com/blogger/v3/users/self/blogs', {
       headers: { Authorization: `Bearer ${token}` },
     });
 
     const blogId = blogsRes.data.items?.[0]?.id;
     if (!blogId) return res.status(400).json({ error: '❌ لم يتم العثور على مدونة' });
 
-     const postRes = await axios.post(`https://www.googleapis.com/blogger/v3/blogs/${blogId}/posts/`, {
+    const postRes = await axios.post(`https://www.googleapis.com/blogger/v3/blogs/${blogId}/posts/`, {
       title,
       content,
     }, {
@@ -112,8 +116,9 @@ app.post('/publish', async (req, res) => {
     return res.status(500).json({ error: 'فشل في النشر إلى Blogger' });
   }
 });
- 
 
+
+// ✅ نشر إلى WordPress
 app.post('/publish-wordpress', async (req, res) => {
   const { url, username, password, title, content } = req.body;
 
@@ -136,9 +141,7 @@ app.post('/publish-wordpress', async (req, res) => {
     res.status(500).json({ error: 'فشل في النشر إلى WordPress' });
   }
 });
- 
-// ✅ ملفات static
-app.use(express.static(path.join(__dirname, 'public')));
+
 
 // ✅ بدء الخادم
 app.listen(PORT, () => {

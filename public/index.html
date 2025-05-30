@@ -150,7 +150,7 @@
 async function handleBloggerPublishing(title, content, index) {
   try {
     // التحقق من حالة تسجيل الدخول
-    const res = await fetch('http://localhost:3000/auth/status', {
+    const res = await fetch('https://ai-writer.onrender.com/auth/status', {
       credentials: 'include'
     });
     const status = await res.json();
@@ -160,12 +160,12 @@ async function handleBloggerPublishing(title, content, index) {
       localStorage.setItem('pendingPost', JSON.stringify({ title, content }));
 
       // إعادة التوجيه لتسجيل الدخول
-      window.location.href = "http://localhost:3000/auth";
+      window.location.href = "https://ai-writer.onrender.com/auth";
       return null;
     }
 
     // تم تسجيل الدخول، متابعة النشر
-    const response = await fetch('http://localhost:3000/publish', {
+    const response = await fetch('https://ai-writer.onrender.com/publish', {
       method: 'POST',
       credentials: 'include', // ضروري لإرسال الكوكيز
       headers: {
@@ -192,7 +192,7 @@ async function handleBloggerPublishing(title, content, index) {
 async function publishToWordPress(index) {
   const article = articles[index]; // تأكد أن `articles` تحتوي على قائمة المقالات
   try {
-    const res = await fetch('http://localhost:3000/publish-wordpress', {
+    const res = await fetch('https://ai-writer.onrender.com/publish-wordpress', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -218,7 +218,7 @@ async function generateArticles() {
   const articlesContainer = document.getElementById('articlesOutput');
 
   try {
-    const res = await fetch('http://localhost:3000/auth/status', { credentials: 'include' });
+    const res = await fetch('https://ai-writer.onrender.com/auth/status', { credentials: 'include' });
     const contentType = res.headers.get('content-type') || '';
     if (!res.ok || !contentType.includes('application/json')) {
       throw new Error('❌ لم يتم تلقي استجابة JSON من الخادم');
