@@ -565,3 +565,27 @@ textarea:focus {
 .modal.hidden { display: none; }
 .modal-content { background: #fff; padding: 20px; border-radius: 10px; width: 300px; text-align: center; }
 .modal-content input { width: 90%; margin: 5px 0; padding: 8px; }
+
+.google-login-btn {
+  display: inline-flex;
+  align-items: center;
+  background-color: white;
+  border: 1px solid #ccc;
+  padding: 10px 15px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: bold;
+  color: #444;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.google-login-btn img {
+  height: 20px;
+  margin-left: 10px;
+}
+
+.google-login-btn:hover {
+  background-color: #f7f7f7;
+}

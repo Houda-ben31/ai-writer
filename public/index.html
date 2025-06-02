@@ -21,7 +21,24 @@
 
 
 </head>
+
 <body>
+
+  <!-- ✅ أزرار الدخول والخروج ولوحة الحساب - توضع داخل <body> -->
+<!-- ✅ أزرار الدخول والخروج بتصميم احترافي -->
+<div id="authButtons" style="text-align: center; margin-bottom: 1rem;">
+  <button id="loginBtn" onclick="signInWithGoogle()" class="google-login-btn">
+    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google Logo">
+    <span>تسجيل الدخول باستخدام Google</span>
+  </button>
+
+  <a href="/account.html" id="accountLink" style="display: none; margin: 0 10px;">👤 لوحة حسابي</a>
+
+  <button id="logoutBtn" onclick="signOutUser()" style="display: none; background: #dc3545; color: white; padding: 10px 15px; border-radius: 8px; border: none;">
+    🚪 تسجيل الخروج
+  </button>
+</div>
+
 
 <div class="g_id_signin" data-type="standard"></div>
 
@@ -38,7 +55,7 @@
        <div id="apiSection">
   <form onsubmit="return false;" class="input-group">
     <label>مفتاح API الخاص بك</label>
-    <input type="password" id="apiKey" placeholder="أدخل مفتاح Gemini API">
+<input type="password" id="apiKey" placeholder="أدخل مفتاح Gemini API" autocomplete="new-password">
     <button class="generate-btn mt-2" onclick="saveAPIKey()">حفظ المفتاح</button>
   </form>
 </div>
@@ -89,20 +106,24 @@
         </div>
     </div>
 
-    <div id="wordpressLoginModal" class="modal hidden">
+  <div id="wordpressLoginModal" class="modal hidden">
   <div class="modal-content">
     <h3>تسجيل الدخول إلى WordPress</h3>
-    <input type="text" id="wpUrl" placeholder="رابط الموقع (مثال: https://example.com)">
-    <input type="text" id="wpUsername" placeholder="اسم المستخدم">
-    <input type="password" id="wpPassword" placeholder="كلمة مرور التطبيق">
-    <button id="confirmWpLogin">متابعة</button>
-    <button onclick="closeWpModal()">إلغاء</button>
+    <form id="wpLoginForm">
+      <input type="text" id="wpUrl" name="wpUrl" placeholder="رابط الموقع (مثال: https://example.com)" required>
+      <input type="text" id="wpUsername" name="wpUsername" placeholder="اسم المستخدم" required>
+      <input type="password" id="wpPassword" name="wpPassword" placeholder="كلمة مرور التطبيق" required>
+      <div class="modal-actions">
+        <button type="submit" id="confirmWpLogin">متابعة</button>
+        <button type="button" onclick="closeWpModal()">إلغاء</button>
+      </div>
+    </form>
   </div>
 </div>
 
-    
-    <script>
 
+     <script>
+ 
         let currentCategory = '1';
         let apiKey = localStorage.getItem('gemini_api_key') || '';
 
@@ -149,34 +170,53 @@
 
 async function handleBloggerPublishing(title, content, index) {
   try {
-    // التحقق من حالة تسجيل الدخول
-    const res = await fetch('https://ai-writer.onrender.com/auth/status', {
-      credentials: 'include'
-    });
-    const status = await res.json();
+    // ✅ التحقق من تسجيل الدخول في Firebase
+    const user = firebase.auth().currentUser;
+    if (!user) {
+      alert("⚠️ يجب تسجيل الدخول أولاً.");
 
-    if (!status.loggedIn) {
-      // حفظ المقال في localStorage للعودة إليه بعد تسجيل الدخول
+      // ✅ حفظ المقال مؤقتاً
       localStorage.setItem('pendingPost', JSON.stringify({ title, content }));
-
-      // إعادة التوجيه لتسجيل الدخول
       window.location.href = "https://ai-writer.onrender.com/auth";
       return null;
     }
 
-    // تم تسجيل الدخول، متابعة النشر
+    const idToken = await user.getIdToken();
+
+    // ✅ التحقق من صلاحية الاشتراك من الخادم
+    const res = await fetch('https://ai-writer.onrender.com/auth/status', {
+      credentials: 'include',
+      headers: {
+        Authorization: `Bearer ${idToken}`
+      }
+    });
+
+    const status = await res.json();
+
+    if (res.status !== 200 || !status.loggedIn) {
+      alert("❌ هذه الميزة متاحة فقط للمشتركين المدفوعين. يرجى الاشتراك لتفعيل ميزة النشر.");
+
+      // ✅ حفظ المقال مؤقتاً
+      localStorage.setItem('pendingPost', JSON.stringify({ title, content }));
+      window.location.href = "/subscribe.html";
+      return null;
+    }
+
+    // ✅ إذا كان مشتركاً → تنفيذ عملية النشر
     const response = await fetch('https://ai-writer.onrender.com/publish', {
       method: 'POST',
-      credentials: 'include', // ضروري لإرسال الكوكيز
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
+        Authorization: `Bearer ${idToken}`
       },
-      body: JSON.stringify({ title, content }),
+      body: JSON.stringify({ title, content })
     });
 
     if (!response.ok) {
       const errData = await response.json().catch(() => ({}));
-      console.error('خطأ في النشر:', errData.error || response.statusText);
+      console.error('❌ خطأ في النشر:', errData.error || response.statusText);
+      alert(`❌ ${errData.error || 'فشل في النشر'}`);
       return null;
     }
 
@@ -184,10 +224,13 @@ async function handleBloggerPublishing(title, content, index) {
     return data.url;
 
   } catch (error) {
-    console.error('خطأ في الاتصال بالخادم:', error);
+    console.error('❌ خطأ في الاتصال بالخادم:', error);
+    alert('❌ حدث خطأ أثناء الاتصال بالخادم.');
     return null;
   }
 }
+
+
 
 async function publishToWordPress(index) {
   const article = articles[index]; // تأكد أن `articles` تحتوي على قائمة المقالات
@@ -573,7 +616,88 @@ ${baseSourcesNote}`;
 
 
     </script>
+
+<!-- ✅ مخرجات المقالات -->
 <div id="articlesOutput" style="display: flex; flex-direction: column;"></div>
+
+<!-- ✅ سكربت تسجيل الدخول باستخدام Firebase -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
+  import {
+    getAuth,
+    GoogleAuthProvider,
+    signInWithPopup,
+    onAuthStateChanged,
+    signOut
+  } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
+
+  let auth, provider;
+
+  // 🔽 تحميل إعدادات Firebase من الخادم
+  fetch('/firebase-config')
+    .then(res => res.json())
+    .then((firebaseConfig) => {
+      // ✅ تهيئة Firebase
+      const app = initializeApp(firebaseConfig);
+      auth = getAuth(app);
+      provider = new GoogleAuthProvider();
+
+      // ✅ تسجيل الدخول باستخدام Google
+      window.signInWithGoogle = async function () {
+        try {
+          const result = await signInWithPopup(auth, provider);
+          const user = result.user;
+          console.log("✅ تم تسجيل الدخول:", user.email);
+          alert("مرحبًا " + user.displayName);
+        } catch (error) {
+          console.error("❌ فشل تسجيل الدخول:", error);
+          alert("فشل تسجيل الدخول: " + error.message);
+        }
+      };
+
+      // ✅ تسجيل الخروج
+      window.signOutUser = async function () {
+        await signOut(auth);
+        alert("🚪 تم تسجيل الخروج");
+      };
+
+      // ✅ مراقبة حالة تسجيل الدخول
+      onAuthStateChanged(auth, async (user) => {
+        const loginBtn = document.getElementById('loginBtn');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const accountLink = document.getElementById('accountLink');
+
+        if (user) {
+          loginBtn.style.display = 'none';
+          logoutBtn.style.display = 'inline-block';
+          accountLink.style.display = 'inline-block';
+
+          const idToken = await user.getIdToken();
+          const res = await fetch('/auth/status', {
+            headers: {
+              Authorization: `Bearer ${idToken}`
+            }
+          });
+          const data = await res.json();
+         if (data.loggedIn) {
+  console.log("✅ المستخدم لديه صلاحيات النشر");
+  window.isPaidUser = true;
+} else {
+  console.warn("⚠️ المستخدم لا يملك صلاحية النشر");
+  window.isPaidUser = false;
+}
+
+        } else {
+          loginBtn.style.display = 'inline-block';
+          logoutBtn.style.display = 'none';
+          accountLink.style.display = 'none';
+        }
+      });
+    })
+    .catch(err => console.error('❌ فشل في تحميل إعدادات Firebase', err));
+</script>
+
+
 <script src="./script.js" defer></script>
 
 </body>
