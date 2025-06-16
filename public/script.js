@@ -1,6 +1,5 @@
-let isPaidUser = false;
-let wpCredentials = {};
-function openWpModal(index) {
+ let wpCredentials = {};
+  function openWpModal(index) {
   document.getElementById('wordpressLoginModal').classList.remove('hidden');
   // تعبئة الحقول تلقائيًا إذا كانت البيانات موجودة
 const saved = sessionStorage.getItem('wpCredentials');
@@ -179,16 +178,10 @@ function displayArticleInPage(container, index, title, contentHtml, downloadUrl,
   // زر النشر
   const publishBtn = articleCard.querySelector('.publish-btn');
   publishBtn.addEventListener('click', async () => {
-  if (!isPaidUser) {
-    alert("⚠️ هذه الميزة متاحة فقط للمشتركين.\nيرجى الاشتراك لتفعيل النشر التلقائي إلى Blogger.");
-    return;
-  }
+    publishBtn.disabled = true;
+    publishBtn.textContent = '⏳ جاري التحقق...';
 
-  publishBtn.disabled = true;
-  publishBtn.textContent = '⏳ جاري التحقق...';
-
-  const resultUrl = await handleBloggerPublishing(title, contentHtml, index);
-
+    const resultUrl = await handleBloggerPublishing(title, contentHtml, index);
     if (resultUrl) {
       publishBtn.textContent = '✅ تم النشر!';
       publishBtn.style.backgroundColor = 'green';
@@ -304,19 +297,19 @@ async function checkAuthStatus() {
     const data = await res.json();
     const authSection = document.getElementById('authSection');
 
-    if (!authSection) return;
+    if (!authSection) return; // يتأكد من وجود العنصر
 
     if (data.loggedIn) {
-      isPaidUser = true; // ✅ المستخدم مسجّل وله صلاحيات
-      authSection.innerHTML = `<p>✅ أنت مسجل الدخول إلى Google. يمكنك النشر إلى Blogger مباشرة من كل مقال.</p>`;
-    } else {
-      isPaidUser = false; // ❌ غير مسجّل
+       authSection.innerHTML = `
+        <p>✅ أنت مسجل الدخول إلى Google. يمكنك النشر إلى Blogger مباشرة من كل مقال.</p>
+      `;
+    } 
+    else {
       authSection.innerHTML = `
-  <p>🚫 ميزة النشر إلى Blogger متاحة فقط للمشتركين.</p>
-  <button id="loginBtn" class="login-btn">🔐 تسجيل الدخول إلى Google</button>
-  <p style="margin-top:10px;"><a href="/subscribe.html">💎 اشترك الآن للحصول على الميزة</a></p>
-`;
-       document.getElementById('loginBtn').onclick = () => {
+        <button id="loginBtn">🔐 تسجيل الدخول إلى Google للنشر على Blogger</button>
+      `;
+
+      document.getElementById('loginBtn').onclick = () => {
         window.location.href = "https://ai-writer.onrender.com/auth";
       };
     }
@@ -344,5 +337,4 @@ function extractKeywordsForImage(text) {
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
-
-
+ 

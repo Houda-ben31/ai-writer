@@ -6,73 +6,29 @@ const cookieParser = require('cookie-parser');
 const cors = require('cors');
 const path = require('path');
 
-dotenv.config();
-// إعداد Firebase Admin
-const admin = require('firebase-admin');
-
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert({
-      projectId: process.env.FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-    }),
-  });
-}
-
+ dotenv.config();
 
 const app = express();
-
-// إعدادات عامة
+app.use(express.static('public'));
 app.use(express.json({ limit: '2mb' }));
 app.use(cookieParser());
 
-// ⚠️ تأكد أن الواجهة الأمامية داخل public
-app.use(express.static(path.join(__dirname, 'public')));
-
-// بيئة الخادم
+ 
 const {
-  PORT = 3000,
+   PORT = 3000,
   GOOGLE_CLIENT_ID,
   GOOGLE_CLIENT_SECRET,
   GOOGLE_REDIRECT_URI,
 } = process.env;
 
-// إعداد CORS - عدلي حسب موقعك النهائي
+
 app.use(cors({
-  origin: ['https://bestsitesfor.com', 'capacitor://localhost',     'http://127.0.0.1:5500', 'http://localhost:5500' , 'http://localhost:3000'],
+  origin: ['https://bestsitesfor.com', 'capacitor://localhost', 'http://localhost:3000' , 'http://127.0.0.1:5500' , 'https://ai-writer-sgka.onrender.com' , 'http://localhost:5500'],
   credentials: true,
 }));
 
- // ✅ حالة الدخول
-app.get('/auth/status', async (req, res) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader?.startsWith('Bearer ')) {
-    return res.status(401).json({ error: '❌ يجب تسجيل الدخول باستخدام Firebase' });
-  }
-
-  const idToken = authHeader.split('Bearer ')[1];
-  let uid;
-
-  try {
-    const decodedToken = await admin.auth().verifyIdToken(idToken);
-    uid = decodedToken.uid;
-  } catch (err) {
-    return res.status(401).json({ error: '❌ رمز الدخول غير صالح' });
-  }
-
-  // ✅ التحقق من الخطة من Firestore
-  try {
-    const userDoc = await admin.firestore().doc(`users/${uid}`).get();
-    const userData = userDoc.data();
-
-    if (userData?.plan !== 'premium') {
-      return res.status(403).json({ error: '❌ هذه الميزة متاحة فقط للمشتركين المدفوعين' });
-    }
-  } catch (err) {
-    return res.status(500).json({ error: '❌ حدث خطأ أثناء التحقق من الخطة' });
-  }
-
+// ✅ حالة الدخول
+app.get('/auth/status', (req, res) => {
   const token = req.cookies.blogger_token;
   res.json({ loggedIn: !!token });
 });
@@ -111,14 +67,14 @@ app.get('/oauth2callback', async (req, res) => {
       maxAge: 3600 * 1000,
     });
 
-    // ✅ أعيدي التوجيه إلى موقعك الحقيقي (ليس localhost)
+
     res.send(`
       <html>
         <head><meta charset="UTF-8"><title>تم تسجيل الدخول</title></head>
         <body>
           <p>✅ تم تسجيل الدخول بنجاح! سيتم تحويلك الآن...</p>
           <script>
-            setTimeout(() => window.location.href = 'https://bestsitesfor.com', 1500);
+            setTimeout(() => window.location.href = '/?from=auth', 1500);
           </script>
         </body>
       </html>
@@ -129,21 +85,21 @@ app.get('/oauth2callback', async (req, res) => {
   }
 });
 
-// ✅ نشر مقال إلى Blogger
+// ✅ نشر مقال
 app.post('/publish', async (req, res) => {
   try {
     const { title, content } = req.body;
     const token = req.cookies.blogger_token;
     if (!token) return res.status(401).json({ error: '❌ غير مصرح. قم بتسجيل الدخول أولًا.' });
 
-    const blogsRes = await axios.get('https://www.googleapis.com/blogger/v3/users/self/blogs', {
+     const blogsRes = await axios.get('https://www.googleapis.com/blogger/v3/users/self/blogs', {
       headers: { Authorization: `Bearer ${token}` },
     });
 
     const blogId = blogsRes.data.items?.[0]?.id;
     if (!blogId) return res.status(400).json({ error: '❌ لم يتم العثور على مدونة' });
 
-    const postRes = await axios.post(`https://www.googleapis.com/blogger/v3/blogs/${blogId}/posts/`, {
+     const postRes = await axios.post(`https://www.googleapis.com/blogger/v3/blogs/${blogId}/posts/`, {
       title,
       content,
     }, {
@@ -157,10 +113,9 @@ app.post('/publish', async (req, res) => {
     return res.status(500).json({ error: 'فشل في النشر إلى Blogger' });
   }
 });
+ 
 
-
-// ✅ نشر إلى WordPress
-app.post('/publish-wordpress', async (req, res) => {
+ app.post('/publish-wordpress', async (req, res) => {
   const { url, username, password, title, content } = req.body;
 
   if (!url || !username || !password || !title || !content) {
@@ -182,67 +137,9 @@ app.post('/publish-wordpress', async (req, res) => {
     res.status(500).json({ error: 'فشل في النشر إلى WordPress' });
   }
 });
-
-app.get('/firebase-config', (req, res) => {
-  res.json({
-    apiKey: process.env.FIREBASE_API_KEY,
-    authDomain: process.env.FIREBASE_AUTH_DOMAIN,
-    projectId: process.env.FIREBASE_PROJECT_ID,
-    storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
-    messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
-    appId: process.env.FIREBASE_APP_ID,
-  });
-});
-
-app.post('/api/verify-subscription', async (req, res) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader?.startsWith('Bearer ')) {
-    return res.status(401).json({ success: false, error: '❌ لم يتم توفير رمز الدخول' });
-  }
-
-  const idToken = authHeader.split('Bearer ')[1];
-
-  let uid;
-  try {
-    const decodedToken = await admin.auth().verifyIdToken(idToken);
-    uid = decodedToken.uid;
-  } catch (err) {
-    return res.status(401).json({ success: false, error: '❌ رمز الدخول غير صالح' });
-  }
-
-  const { subscriptionID } = req.body;
-  if (!subscriptionID) {
-    return res.status(400).json({ success: false, error: '❌ معرف الاشتراك غير موجود' });
-  }
-
-  try {
-    // استعلام إلى PayPal API
-    const paypalRes = await axios.get(`https://api-m.paypal.com/v1/billing/subscriptions/${subscriptionID}`, {
-      headers: {
-        Authorization: `Basic ${Buffer.from(`${process.env.PAYPAL_CLIENT_ID}:${process.env.PAYPAL_SECRET}`).toString('base64')}`,
-        'Content-Type': 'application/json'
-      }
-    });
-
-    const status = paypalRes.data.status;
-    if (status !== 'ACTIVE') {
-      return res.status(400).json({ success: false, error: '❌ الاشتراك غير نشط' });
-    }
-
-    // ✅ تحديث خطة المستخدم إلى "premium"
-    await admin.firestore().doc(`users/${uid}`).set({
-      plan: 'premium',
-      subscriptionID,
-      subscribedAt: new Date().toISOString()
-    }, { merge: true });
-
-    return res.json({ success: true });
-
-  } catch (error) {
-    console.error('❌ فشل التحقق من اشتراك PayPal:', error.response?.data || error.message);
-    return res.status(500).json({ success: false, error: '❌ فشل في التحقق من اشتراك PayPal' });
-  }
-});
+ 
+// ✅ ملفات static
+app.use(express.static(path.join(__dirname, 'public')));
 
 // ✅ بدء الخادم
 app.listen(PORT, () => {
