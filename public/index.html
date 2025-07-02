@@ -29,11 +29,11 @@
     <div class="container">
   <header class="header">
   <div class="logo-container">
-    <a href="https://www.youtube.com/@ribhonline31" class="logo-link" target="_blank" rel="noopener noreferrer">
+    <a href="https://ribhonline31.blogspot.com" class="logo-link" target="_blank" rel="noopener noreferrer">
       <img src="https://blogger.googleusercontent.com/img/a/AVvXsEgbcrY_UmYFuOqq4ZcaVj0Y1LRoLqdpJ3L847s_utvBOcHXiGmc6Pjn7tpbAZI-vwz7eUxrCLs-MadSR2rzdl_9eo0F45eoJbl6EB0ux6oZQNHFuE1l58y2R522jPMbHI9UZWtj8TdPfDLos3v3zHrhb4Swr4EYYL5ThfPCmjsZ26jJuJrlIJJvoiXida4=s250" alt="شعار أداة كتابة المقالات الذكية من مدرسة الذكاء الاصطناعي" class="logo">
     </a>
   </div>
-<h1>أنشئ مقالات عربية احترافية باستخدام أداة الكتابة الذكية - AI Writer</h1>
+<h1>أنشئ مقالات احترافية باستخدام أداة الكتابة الذكية - AI Writer</h1>
 </header>
 
        <div id="apiSection">
@@ -80,6 +80,12 @@
             <div class="progress-container">
                 <div class="progress-bar" id="progressBar"></div>
             </div>
+
+            <label for="language">اختر اللغة:</label>
+<select id="language">
+  <option value="ar" selected>العربية</option>
+  <option value="en">English</option>
+</select>
 
             <div id="statusBar" class="alert"></div>
 
@@ -148,32 +154,45 @@
             return true;
         }
 
-async function handleBloggerPublishing(title, content, index) {
+// ✅ دالة تحسين عنوان المقال تلقائيًا
+function makeSEOFriendlyTitle(title) {
+  return title
+    .replace(/[^a-zA-Z0-9؀-ۿ\s]/g, '') // إزالة الرموز
+    .replace(/\s+/g, ' ') // توحيد الفراغات
+    .replace(/\b(مقال|حول|عن|كل شيء|مقدمة)\b/gi, '') // حذف كلمات عامة
+    .trim()
+    .slice(0, 60);
+}
+function stripHTML(html) {
+  const div = document.createElement('div');
+  div.innerHTML = html;
+  return div.textContent || div.innerText || '';
+}
+
+// ✅ دالة النشر إلى بلوجر مع تمرير العنوان المُحسن
+async function handleBloggerPublishing(title, content, topic, language = 'ar') {
   try {
-    // التحقق من حالة تسجيل الدخول
-    const res = await fetch('http://localhost:3000/auth/status', {
+    const res = await fetch(`${BASE_URL}/auth/status`, {
       credentials: 'include'
     });
-     const status = await res.json();
+    const status = await res.json();
 
     if (!status.loggedIn) {
-      // حفظ المقال في localStorage للعودة إليه بعد تسجيل الدخول
-      localStorage.setItem('pendingPost', JSON.stringify({ title, content }));
-
-      // إعادة التوجيه لتسجيل الدخول
-      window.location.href = "http://localhost:3000/auth";
+      localStorage.setItem('pendingPost', JSON.stringify({ title, content, topic, language }));
+      window.location.href = `${BASE_URL}/auth`;
       return null;
     }
 
-    // تم تسجيل الدخول، متابعة النشر
-    const response = await fetch('http://localhost:3000/publish', {
-      method: 'POST',
-      credentials: 'include', // ضروري لإرسال الكوكيز
-      headers: {
-        'Content-Type': 'application/json',
+    const permalink = '';
+    const metaTags = generateMetaTags(content, topic, title, permalink, language);
+    const cleanedContent = metaTags + cleanHTMLContent(content, language);
+    const fullTitle = title;
 
-      },
-      body: JSON.stringify({ title, content }),
+    const response = await fetch(`${BASE_URL}/publish`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: fullTitle, content: cleanedContent })
     });
 
     if (!response.ok) {
@@ -190,6 +209,7 @@ async function handleBloggerPublishing(title, content, index) {
     return null;
   }
 }
+
 
  async function publishToWordPress(index) {
   const article = articles[index]; // تأكد أن `articles` تحتوي على قائمة المقالات
@@ -216,11 +236,20 @@ async function handleBloggerPublishing(title, content, index) {
   }
 }
 
+function generateMetaTags(content, topic) {
+  const description = content.replace(/<[^>]+>/g, '').trim().slice(0, 150) + '...';
+const keywords = extractKeywords(topic, currentCategory, language);
+  return `
+<meta name="description" content="${description}">
+<meta name="keywords" content="${keywords}">
+`;
+}
+
 async function generateArticles() {
   const articlesContainer = document.getElementById('articlesOutput');
 
   try {
-    const res = await fetch('http://localhost:3000/auth/status', { credentials: 'include' });
+    const res = await fetch(`${BASE_URL}/auth/status`, { credentials: 'include' });
     const contentType = res.headers.get('content-type') || '';
     if (!res.ok || !contentType.includes('application/json')) {
       throw new Error('❌ لم يتم تلقي استجابة JSON من الخادم');
@@ -230,9 +259,11 @@ async function generateArticles() {
     const isLoggedIn = data.loggedIn;
 
     const count = parseInt(document.getElementById('articleCount').value) || 1;
+    const language = document.getElementById('language').value;
+
     const topic = currentCategory === '4'
       ? document.getElementById('customTopicInput').value.trim()
-      : getDefaultTopic();
+      : getDefaultTopic(language);
 
     if (!validateInputs(topic, count)) return;
 
@@ -245,41 +276,50 @@ async function generateArticles() {
 
     for (let i = 0; i < count; i++) {
       const stepWeight = 100 / count;
-
-      updateProgress(i * stepWeight + 5);
+       updateProgress(i * stepWeight + 5);
 
       try {
-        const content = await fetchArticle(topic, currentCategory);
+        const content = await fetchArticle(topic, currentCategory, language);
         updateProgress(i * stepWeight + 20);
+       const articleBodyContent = content;
+       const title = articleBodyContent.split('\n')[0].replace(/^#+/, '').trim(); // توليد العنوان من أول سطر
+const metaTags = generateMetaTags(articleBodyContent, topic, title, '', language);
+const htmlContent = metaTags + cleanHTMLContent(articleBodyContent, language);
 
-        const articleBodyContent = content;
-        const metaDescription = content.substring(0, 150).replace(/\n/g, ' ') + '...';
-        const keywords = extractKeywords(topic);
 
-        const htmlContent = articleBodyContent;
-        const safeFileName = sanitizeFileName(`مقال_${i + 1}_${topic}`);
+         const safeFileName = sanitizeFileName(`مقال_${i + 1}_${topic}`);
         zip.file(`${safeFileName}.txt`, htmlContent);
 
         const articleBlob = new Blob([htmlContent], { type: 'text/html' });
         const articleUrl = URL.createObjectURL(articleBlob);
 
         updateProgress(i * stepWeight + 90);
-        displayArticleInPage(articlesContainer, i, topic, articleBodyContent, articleUrl, safeFileName, isLoggedIn);
+       displayArticleInPage(
+  articlesContainer,
+  i,
+  title,
+  htmlContent,
+  articleUrl,
+  safeFileName,
+  isLoggedIn,
+  topic,
+  language
+);
+
 
       } catch (articleError) {
         console.warn(`❌ فشل إنشاء المقال رقم ${i + 1}:`, articleError.message);
         showError(`⚠️ لم يتم توليد المقال رقم ${i + 1} بسبب خطأ في الاتصال أو التوليد.`);
-        continue; // استمر لباقي المقالات
+        continue;
       }
 
-      // 💤 تأخير بسيط لتفادي الضغط على API
-      await sleep(500); // نصف ثانية، يمكنك زيادته لو واجهت rate limit
+      await sleep(500);
     }
 
     updateProgress(100);
     showSuccess(`✅ تم إنشاء ${count} مقال${count > 1 ? 'ات' : ''} بنجاح!`);
 
-     const zipBlob = await zip.generateAsync({ type: 'blob' });
+    const zipBlob = await zip.generateAsync({ type: 'blob' });
     const zipUrl = URL.createObjectURL(zipBlob);
     const zipLink = document.createElement('a');
     zipLink.href = zipUrl;
@@ -291,14 +331,13 @@ async function generateArticles() {
   } catch (error) {
     showError(error.message || 'حدث خطأ أثناء إنشاء المقالات');
     articlesContainer.style.display = 'none';
-   } finally {
+  } finally {
     setTimeout(resetProgress, 1500);
   }
 }
 
 
-
-  async function fetchArticle(topic, currentCategory) {
+async function fetchArticle(topic, currentCategory, language = 'ar') {
   let article = '';
   let lastText = '';
   let wordCount = 0;
@@ -320,7 +359,7 @@ async function generateArticles() {
    const promptText = lastText && !article.includes('<h2>المصادر</h2>')
   ? `استمر في كتابة المقال التالي حول "${topic}" بدءًا من: "${lastText.slice(-500)}"` + // زودنا القطعة هنا
     (isLastTry ? "\n\nيرجى إنهاء المقال بإضافة قسم <h2>المصادر</h2> يحتوي على روابط موثوقة بصيغة HTML." : "")
-  : generatePrompt(topic, currentCategory);
+: generatePrompt(topic, currentCategory, language);
 
 
     const response = await fetch(
@@ -506,17 +545,38 @@ function getDefaultTopic(language = 'ar') {
 }
 
 
-function extractKeywords(topic) {
-  const stopWords = ['هذه', 'الذي', 'التي', 'من', 'عن', 'على', 'في'];
-  return topic
-    .split(' ')
-    .filter(word => word.length > 3 && !stopWords.includes(word))
-    .slice(0, 5)
-    .join(', ');
+function extractKeywords(topic, currentCategory = '4', language = 'ar') {
+  const arabicStopWords = ['هذه', 'الذي', 'التي', 'من', 'عن', 'على', 'في', 'و', 'أن', 'إلى', 'مع', 'بها', 'له', 'كما'];
+  const englishStopWords = ['this', 'that', 'from', 'with', 'about', 'into', 'and', 'the', 'for', 'are', 'was'];
+
+  const stopWords = language === 'en' ? englishStopWords : arabicStopWords;
+
+  // تخصيص كلمات مفتاحية مقترحة لكل تصنيف
+  const customKeywords = {
+    '1': ['رياضة', 'كرة القدم', 'الدوري', 'أهداف', 'تحليل'], // رياضة
+    '2': ['طبخ', 'وصفة', 'مقادير', 'طريقة', 'مكونات'],        // وصفات
+    '3': ['سياحة', 'السفر', 'دليل', 'وجهة', 'فنادق'],         // أماكن سياحية
+    '4': [] // موضوع مخصص
+  };
+
+  const words = topic.toLowerCase().split(/\s+/);
+  const baseKeywords = words.filter(word => word.length > 3 && !stopWords.includes(word));
+
+  const combinedKeywords = [...new Set([
+    ...customKeywords[currentCategory],
+    ...baseKeywords
+  ])];
+
+  return combinedKeywords.slice(0, 7).join(', ');
 }
 
-function generatePrompt(topic, currentCategory) {
-  const keywords = extractKeywords(topic);
+
+function generatePrompt(topic, currentCategory, language = 'ar') {
+  if (language === 'en') {
+  return `Write a detailed, SEO-optimized blog post of at least 2000 words about "${topic}".
+Include HTML formatting with <h2>, <p>, <ul>, and <li> as needed. Add a conclusion and a sources section in <h2>Sources</h2> with links inside <ul><li><a href='...'>Source</a></li></ul>.`;
+}
+const keywords = extractKeywords(topic, currentCategory, language);
 
   const baseSourcesNote = `- وفي نهاية المقال، أضف قسمًا بعنوان <h2>المصادر</h2> يحتوي على قائمة <ul> بها روابط موثوقة ذات صلة بالموضوع مثل ويكيبيديا أو BBC أو Aljazeera بصيغة: <li><a href="https://example.com">اسم المصدر</a></li>`;
 
@@ -576,7 +636,7 @@ ${baseSourcesNote}`;
 
     </script>
  <div id="articlesOutput" style="display: flex; flex-direction: column;"></div>
-    <script src="script.js"></script>
+<script src="script.js" defer></script>
 
 </body>
 </html>

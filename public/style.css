@@ -565,4 +565,7 @@ textarea:focus {
 .modal.hidden { display: none; }
 .modal-content { background: #fff; padding: 20px; border-radius: 10px; width: 300px; text-align: center; }
 .modal-content input { width: 90%; margin: 5px 0; padding: 8px; }
- 
+ #language {
+  margin: 10px 0;
+  padding: 5px;
+}

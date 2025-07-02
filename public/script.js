@@ -1,14 +1,138 @@
- let wpCredentials = {};
-  function openWpModal(index) {
-  document.getElementById('wordpressLoginModal').classList.remove('hidden');
-  // تعبئة الحقول تلقائيًا إذا كانت البيانات موجودة
-const saved = sessionStorage.getItem('wpCredentials');
-if (saved) {
-  const creds = JSON.parse(saved);
-  document.getElementById('wpUrl').value = creds.url || '';
-  document.getElementById('wpUsername').value = creds.username || '';
-  document.getElementById('wpPassword').value = creds.password || '';
+let wpCredentials = {};
+const BASE_URL = 'http://localhost:3000';
+
+function cleanHTMLContent(rawHtml, language = 'ar') {
+  const direction = language === 'en' ? 'ltr' : 'rtl';
+  const textAlign = direction === 'ltr' ? 'left' : 'right';
+  const langAttr = language === 'en' ? 'en' : 'ar';
+
+  const ARTICLE_STYLE = `
+  <style>
+  .article-body {
+    direction: ${direction};
+    text-align: ${textAlign};
+    font-family: 'Tajawal', sans-serif;
+    line-height: 1.8;
+    font-size: 16px;
+    color: #222;
+    padding: 10px;
+  }
+  .article-body h1, .article-body h2, .article-body h3 {
+    color: #0077cc;
+    margin-top: 20px;
+  }
+  .article-body p {
+    margin: 0 0 15px;
+  }
+  .article-body ul, .article-body ol {
+    padding-left: 20px;
+    margin-bottom: 15px;
+  }
+  .article-body ul li, .article-body ol li {
+    margin-bottom: 10px;
+  }
+  .article-body a {
+    color: #0066cc;
+    text-decoration: underline;
+  }
+  .article-body a:hover {
+    color: #004080;
+    text-decoration: none;
+  }
+  </style>
+  `;
+
+  const tempDiv = document.createElement('div');
+  tempDiv.innerHTML = rawHtml;
+
+  ['html', 'head', 'style', 'meta', 'title', 'link'].forEach(tag => {
+    const elements = tempDiv.getElementsByTagName(tag);
+    while (elements[0]) {
+      elements[0].parentNode.removeChild(elements[0]);
+    }
+  });
+
+  const ps = tempDiv.querySelectorAll('p > p');
+  ps.forEach(innerP => {
+    const parent = innerP.parentNode;
+    parent.replaceWith(innerP);
+  });
+
+  const cleaned = tempDiv.innerHTML.trim();
+
+  return `${ARTICLE_STYLE}<div class="article-body" dir="${direction}" lang="${langAttr}">${cleaned}</div>`;
 }
+
+function generateMetaTags(content, topic, title, _unused = '', language = 'ar') {
+  // ✅ لا تضف الوسوم إذا كانت موجودة مسبقًا في المقال
+  if (content.includes('<meta name="description"') || content.includes('<script type="application/ld+json">')) {
+    return ''; // تجاهل الإضافة
+  }
+
+  const plainText = content.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+  const description = plainText.slice(0, 160);
+  const keywords = extractKeywords(topic, currentCategory, language);
+const url = `https://bestsitesfor.com/articles/${encodeURIComponent(title.trim())}`;
+  const image = 'https://bestsitesfor.com/assets/article-cover.jpg';
+  const date = new Date().toISOString();
+
+  return `
+<!-- ✅ Meta SEO Tags -->
+<meta name="description" content="${description} - اقرأ الآن لتتعرف على المزيد.">
+<meta name="keywords" content="${keywords}">
+<meta name="robots" content="index, follow">
+<meta name="author" content="AI Writer Tool">
+
+<!-- ✅ Open Graph Tags -->
+<meta property="og:title" content="${title}">
+<meta property="og:description" content="${description}">
+<meta property="og:type" content="article">
+<meta property="og:url" content="${url}">
+<meta property="og:image" content="${image}">
+<meta property="og:locale" content="${language === 'en' ? 'en_US' : 'ar_AR'}">
+
+<!-- ✅ Twitter Card -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="${title}">
+<meta name="twitter:description" content="${description}">
+<meta name="twitter:image" content="${image}">
+
+<!-- ✅ JSON-LD Structured Data -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "${title}",
+  "description": "${description}",
+  "image": "${image}",
+  "author": {
+    "@type": "Organization",
+    "name": "AI Writer Tool"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "AI Writer Tool",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://bestsitesfor.com/favicon.ico"
+    }
+  },
+  "mainEntityOfPage": "${url}",
+  "datePublished": "${date}"
+}
+</script>`;
+}
+
+
+function openWpModal(index) {
+  document.getElementById('wordpressLoginModal').classList.remove('hidden');
+  const saved = sessionStorage.getItem('wpCredentials');
+  if (saved) {
+    const creds = JSON.parse(saved);
+    document.getElementById('wpUrl').value = creds.url || '';
+    document.getElementById('wpUsername').value = creds.username || '';
+    document.getElementById('wpPassword').value = creds.password || '';
+  }
 
   document.getElementById('confirmWpLogin').onclick = () => {
     wpCredentials = {
@@ -17,8 +141,7 @@ if (saved) {
       password: document.getElementById('wpPassword').value.trim(),
     };
 
-    // ✅ تخزين مؤقت في sessionStorage
-sessionStorage.setItem('wpCredentials', JSON.stringify(wpCredentials));
+    sessionStorage.setItem('wpCredentials', JSON.stringify(wpCredentials));
 
     if (!wpCredentials.url || !wpCredentials.username || !wpCredentials.password) {
       alert('يرجى إدخال جميع البيانات');
@@ -34,57 +157,49 @@ function closeWpModal() {
   document.getElementById('wordpressLoginModal').classList.add('hidden');
 }
 
-window.addEventListener('DOMContentLoaded', async () => {
-   // ✅ استعادة بيانات WordPress من sessionStorage إن وُجدت
+ window.addEventListener('DOMContentLoaded', async () => {
   const savedWp = sessionStorage.getItem('wpCredentials');
   if (savedWp) {
     wpCredentials = JSON.parse(savedWp);
     console.log('📦 تم استعادة بيانات WordPress من الجلسة');
   }
-  // تحقق من حالة الدخول وتهيئة الواجهة
+
   await checkAuthStatus();
 
-  // ثم حاول إعادة نشر مقال معلق إذا وجد
-const pending = localStorage.getItem('pendingPost');
+  const pending = localStorage.getItem('pendingPost');
   if (pending) {
-    const { title, content } = JSON.parse(pending);
-
+    const { title, content, language = 'ar' } = JSON.parse(pending);
     console.log('🔁 محاولة إعادة نشر المقال بعد تسجيل الدخول...');
 
- 
- const result = await handleBloggerPublishing(title, content);
+    const result = await handleBloggerPublishing(title, content, language);
 
-if (result) {
-  alert('✅ تم نشر المقال بعد تسجيل الدخول');
-  window.open(result, '_blank');
+    if (result) {
+      alert('✅ تم نشر المقال بعد تسجيل الدخول');
+      window.open(result, '_blank');
 
-  const isLoggedIn = true;
-  const fileName = sanitizeFileName(title);
-  const articleUrl = result;
+      const isLoggedIn = true;
+      const fileName = sanitizeFileName(title);
+      const cleanedContent = cleanHTMLContent(content, language);
+const articleUrl = result; // ← هذا هو رابط المقال
 
-  displayArticleInPage(
-    document.getElementById('articlesOutput'),
-    0,
-    title,
-    content,
-    articleUrl,
-    fileName,
-    isLoggedIn
-  );
+      displayArticleInPage(
+        document.getElementById('articlesOutput'),
+        0,
+        title,
+        cleanedContent,
+        articleUrl,
+        fileName,
+        isLoggedIn
+      );
+    } else {
+      alert('❌ فشل في النشر بعد تسجيل الدخول، يرجى المحاولة يدويًا.');
+    }
 
-} else {
-  alert('❌ فشل في النشر بعد تسجيل الدخول، يرجى المحاولة يدويًا.');
-}
-
-// ⛔️ هذا السطر يجب أن يكون هنا خارج if/else
-localStorage.removeItem('pendingPost');
-
+    localStorage.removeItem('pendingPost');
   }
 });
 
-
-
-async function generateArticleWithProgress(topic, index) {
+async function generateArticleWithProgress(topic, index, language) {
   showLoading();
   resetProgress();
 
@@ -94,7 +209,7 @@ async function generateArticleWithProgress(topic, index) {
   const response = await fetch('/generate-article', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ topic }),
+  body: JSON.stringify({ topic, language }), // ← أضفنا اللغة
   });
 
   updateProgress(40);
@@ -142,46 +257,48 @@ function generateArticleContent(title, body, description = '', keywords = '') {
   `;
 }
  
-
-function displayArticleInPage(container, index, title, contentHtml, downloadUrl, fileName, isLoggedIn) {
+// ✅ عرض المقال مع العنوان المُحسن مسبقًا
+function displayArticleInPage(container, index, title, contentHtml, downloadUrl, fileName, isLoggedIn, topic, language) {
   const articleCard = document.createElement('div');
   articleCard.className = 'article-card';
 
+const cleanTitle = stripHTML(title);
+const suggestedTitle = makeSEOFriendlyTitle(cleanTitle);
+
   articleCard.innerHTML = `
-    <h2>${title}</h2>
+    <h2>${suggestedTitle}</h2>
+    <input type="text" class="seo-title-input" value="${suggestedTitle}" placeholder="📝 يمكنك تعديل العنوان لتحسين السيو">
     <div class="article-content">${contentHtml}</div>
     <div class="article-actions">
       <a href="#" class="download-btn" data-filename="${fileName}">💾 تحميل TXT</a>
       <button class="copy-btn">📋 نسخ المقال</button>
       <button class="publish-btn" data-index="${index}">📤 نشر إلى Blogger</button>
       <button class="publish-wordpress-btn" data-index="${index}">نشر في WordPress</button>
-
-      </div>
+    </div>
   `;
 
   container.appendChild(articleCard);
 
-  // زر التحميل
-  const downloadBtn = articleCard.querySelector('.download-btn');
+   const downloadBtn = articleCard.querySelector('.download-btn');
   downloadBtn.addEventListener('click', (e) => {
     e.preventDefault();
     const fileName = downloadBtn.getAttribute('data-filename');
     downloadAsText(fileName, contentHtml);
   });
 
-  // زر النسخ
-  const copyBtn = articleCard.querySelector('.copy-btn');
+   const copyBtn = articleCard.querySelector('.copy-btn');
   copyBtn.addEventListener('click', () => {
     copyArticleToClipboard(contentHtml, copyBtn);
   });
 
-  // زر النشر
-  const publishBtn = articleCard.querySelector('.publish-btn');
+   const publishBtn = articleCard.querySelector('.publish-btn');
   publishBtn.addEventListener('click', async () => {
     publishBtn.disabled = true;
     publishBtn.textContent = '⏳ جاري التحقق...';
 
-    const resultUrl = await handleBloggerPublishing(title, contentHtml, index);
+    const customTitle = articleCard.querySelector('.seo-title-input').value.trim() || suggestedTitle;
+    const resultUrl = await handleBloggerPublishing(customTitle, contentHtml, topic, language);
+
     if (resultUrl) {
       publishBtn.textContent = '✅ تم النشر!';
       publishBtn.style.backgroundColor = 'green';
@@ -192,12 +309,13 @@ function displayArticleInPage(container, index, title, contentHtml, downloadUrl,
       publishBtn.style.backgroundColor = 'red';
     }
   });
-   // زر النشر إلى WordPress
+
   const publishWpBtn = articleCard.querySelector('.publish-wordpress-btn');
   publishWpBtn.addEventListener('click', () => {
     openWpModal(index);
   });
 }
+
 function copyArticleToClipboard(htmlContent, button) {
   const tempElement = document.createElement('div');
   tempElement.innerHTML = htmlContent;
@@ -281,7 +399,7 @@ function downloadAsPDF(fileName, htmlContent) {
 
 async function checkIfLoggedIn() {
   try {
-    const res = await fetch('https://ai-writer.onrender.com/auth/status', { credentials: 'include' });
+    const res = await fetch(`${BASE_URL}/auth/status`, { credentials: 'include' });
     const data = await res.json();
     return data.loggedIn;
   } catch (err) {
@@ -289,6 +407,7 @@ async function checkIfLoggedIn() {
     return false;
   }
 }
+
 
 
 async function checkAuthStatus() { 

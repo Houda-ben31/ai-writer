@@ -141,6 +141,51 @@ app.post('/publish', async (req, res) => {
 // ✅ ملفات static
 app.use(express.static(path.join(__dirname, 'public')));
 
+app.post('/generate-article', async (req, res) => {
+  const { topic, language = 'ar' } = req.body;
+
+  const prompt =
+    language === 'en'
+      ? `Write a high-quality blog article in English about: ${topic}`
+      : `اكتب مقالة عربية عالية الجودة حول: ${topic}`;
+
+  try {
+    // 🟢 1. توليد المحتوى الأساسي
+    const geminiResponse = await axios.post(
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=' + process.env.GEMINI_API_KEY,
+      {
+        contents: [{ parts: [{ text: prompt }] }],
+      }
+    );
+
+    const rawText = geminiResponse.data.candidates?.[0]?.content?.parts?.[0]?.text || 'لم يتم توليد محتوى.';
+    const title = rawText.split('\n')[0].replace(/^#+/, '').trim();
+
+    // 🟡 2. إعادة الصياغة للحصول على نسخة فريدة
+    const rephrasePrompt =
+      language === 'en'
+        ? `Paraphrase the following blog article to make it unique, human-like, and SEO-optimized:\n\n${rawText}`
+        : `أعد صياغة المقال التالي بأسلوب حصري وطبيعي ومتوافق مع معايير السيو:\n\n${rawText}`;
+
+    const paraphrasedRes = await axios.post(
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=' + process.env.GEMINI_API_KEY,
+      {
+        contents: [{ parts: [{ text: rephrasePrompt }] }],
+      }
+    );
+
+    const finalText = paraphrasedRes.data.candidates?.[0]?.content?.parts?.[0]?.text || rawText;
+
+    // 🟢 3. إرجاع المقال بعد إعادة الصياغة
+    res.json({ title, content: finalText });
+
+  } catch (error) {
+    console.error('❌ خطأ في توليد أو إعادة صياغة المقال:', error.response?.data || error.message);
+    res.status(500).json({ error: 'فشل في توليد المقال' });
+  }
+});
+
+
 // ✅ بدء الخادم
 app.listen(PORT, () => {
   console.log(`✅ الخادم يعمل على http://localhost:${PORT}`);
