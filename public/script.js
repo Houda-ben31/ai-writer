@@ -1,5 +1,5 @@
 let wpCredentials = {};
-const BASE_URL = 'http://localhost:3000';
+const BASE_URL = 'https://ai-writer-sgka.onrender.com';
 
 function cleanHTMLContent(rawHtml, language = 'ar') {
   const direction = language === 'en' ? 'ltr' : 'rtl';
