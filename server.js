@@ -196,21 +196,8 @@ app.post('/generate-article', async (req, res) => {
     );
 
 const finalText = paraphrasedRes.data.candidates?.[0]?.content?.parts?.[0]?.text || rawText;
+res.json({ title, content: finalText });
 
-// ✅ نضيف قسم "المصادر" تلقائيًا في نهاية المقال
-const sourceBox = `
-<h2>المصادر</h2>
-<ul>
-  <li><a href="https://ribhonline31.blogspot.com" target="_blank"> ribhonline - مصادر وأدوات مفيدة للمحتوى </a></li>
-   <li><a href="https://ar.wikipedia.org" target="_blank">ويكيبيديا</a></li>
-  <li><a href="https://www.bbc.com/arabic" target="_blank">BBC عربي</a></li>
-</ul>
-`;
-
-const finalTextWithSource = finalText + '\n\n' + sourceBox;
-
-    // 🟢 3. إرجاع المقال بعد إعادة الصياغة
-res.json({ title, content: finalTextWithSource });
 
   } catch (error) {
     console.error('❌ خطأ في توليد أو إعادة صياغة المقال:', error.response?.data || error.message);

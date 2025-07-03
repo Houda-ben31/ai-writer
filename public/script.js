@@ -339,16 +339,45 @@ const suggestedTitle = makeSEOFriendlyTitle(cleanTitle);
       <button class="publish-btn" data-index="${index}">📤 نشر إلى Blogger</button>
       <button class="publish-wordpress-btn" data-index="${index}">نشر في WordPress</button>
     </div>
+   <div style="text-align: center; margin-top: 20px;">
+  <a href="https://ribhonline31.blogspot.com" target="_blank"
+     style="
+       display: inline-block;
+       background-color: #28a745;
+       color: white;
+       padding: 10px 20px;
+       border-radius: 8px;
+       font-weight: bold;
+       text-decoration: none;
+       box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+       transition: background 0.3s ease;
+     "
+     onmouseover="this.style.backgroundColor='#218838'"
+     onmouseout="this.style.backgroundColor='#28a745'"
+  >
+    🔗 زوروا موقعنا: ribhonline - أدوات مفيدة
+  </a>
+</div>
   `;
 
   container.appendChild(articleCard);
 
    const downloadBtn = articleCard.querySelector('.download-btn');
   downloadBtn.addEventListener('click', (e) => {
-    e.preventDefault();
-    const fileName = downloadBtn.getAttribute('data-filename');
-    downloadAsText(fileName, contentHtml);
-  });
+  e.preventDefault();
+  const fileName = downloadBtn.getAttribute('data-filename');
+
+  // استخراج النص من HTML
+  const temp = document.createElement('div');
+  temp.innerHTML = contentHtml;
+  let plainText = temp.innerText.trim();
+
+  // ✅ أضف رابط الموقع دائمًا
+  plainText += `\n\n🔗 زوروا موقعنا: ribhonline - أدوات مفيدة\nhttps://ribhonline31.blogspot.com`;
+
+  // ثم تحميله كملف نصي
+  downloadAsText(fileName, plainText);
+});
 
    const copyBtn = articleCard.querySelector('.copy-btn');
   copyBtn.addEventListener('click', () => {
@@ -398,9 +427,13 @@ function copyArticleToClipboard(htmlContent, button) {
   const tempElement = document.createElement('div');
   tempElement.innerHTML = htmlContent;
 
-  const text = tempElement.innerText;
+let text = tempElement.innerText.trim();
 
-  navigator.clipboard.writeText(text).then(() => {
+// ✅ إضافة رابط موقعك في النهاية
+text += `\n\n🔗 زوروا موقعنا: ribhonline - أدوات مفيدة\nhttps://ribhonline31.blogspot.com`;
+
+navigator.clipboard.writeText(text).then(() => {
+
     button.textContent = '✅ تم النسخ!';
     button.disabled = true;
 
@@ -460,9 +493,23 @@ function downloadAsPDF(fileName, htmlContent) {
       <head>
         <meta charset="UTF-8">
         <title>${fileName}</title>
+        <style>
+          body { font-family: 'Tajawal', sans-serif; direction: rtl; padding: 20px; }
+          .source-link {
+            margin-top: 50px;
+            text-align: center;
+            font-weight: bold;
+            color: #007bff;
+          }
+        </style>
       </head>
       <body>
         ${htmlContent}
+
+        <div class="source-link">
+          🔗 زوروا موقعنا: 
+          <a href="https://ribhonline31.blogspot.com" target="_blank">ribhonline - أدوات مفيدة</a>
+        </div>
       </body>
     </html>
   `);
