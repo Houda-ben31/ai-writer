@@ -490,7 +490,7 @@ async function checkIfLoggedIn() {
 
 async function checkAuthStatus() { 
   try {
-    const res = await fetch('https://ai-writer.onrender.com/auth/status', { credentials: 'include' });
+    const res = await fetch('https://ai-writer-sgka.onrender.com/auth/status', { credentials: 'include' });
     const data = await res.json();
     const authSection = document.getElementById('authSection');
 
@@ -507,7 +507,7 @@ async function checkAuthStatus() {
       `;
 
       document.getElementById('loginBtn').onclick = () => {
-        window.location.href = "https://ai-writer.onrender.com/auth";
+        window.location.href = "https://ai-writer-sgka.onrender.com/auth";
       };
     }
   } catch (err) {

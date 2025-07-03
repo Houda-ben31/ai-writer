@@ -227,7 +227,7 @@ async function handleBloggerPublishing(title, content, topic, language = 'ar') {
  async function publishToWordPress(index) {
   const article = articles[index]; // تأكد أن `articles` تحتوي على قائمة المقالات
   try {
-    const res = await fetch('https://ai-writer.onrender.com/publish-wordpress', {
+    const res = await fetch('https://ai-writer-sgka.onrender.com/publish-wordpress', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
