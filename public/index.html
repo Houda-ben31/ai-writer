@@ -48,7 +48,7 @@
 <body>
 
    
-  
+
         <div id="mainUI" class="hidden">
             <div class="category-grid">
                 <div class="category-card" data-category="1">
@@ -75,6 +75,15 @@
                     <textarea id="customTopicInput" rows="2" placeholder="أدخل عنوان المقال المطلوب..."></textarea>
                 </div>
                 
+                <!-- نافذة اختيار المدونة -->
+<div id="blogModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:#000000aa; z-index:9999; justify-content:center; align-items:center;">
+  <div style="background:#fff; padding:20px; border-radius:10px; width:300px; max-height:400px; overflow-y:auto;">
+    <h3 style="margin-bottom: 10px;">📝 اختر مدونة للنشر</h3>
+    <ul id="blogList" style="list-style:none; padding:0;"></ul>
+    <button onclick="closeBlogModal()" style="margin-top:10px;">❌ إلغاء</button>
+  </div>
+</div>
+
                 <label>عدد المقالات</label>
                 <input type="number" id="articleCount" value="1" min="1" max="50">
             </div>

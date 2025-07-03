@@ -259,53 +259,13 @@ function generateArticleContent(title, body, description = '', keywords = '') {
   `;
 }
  
-
-async function selectBlogFromUser() {
-  try {
-    const res = await fetch('/blogs', { credentials: 'include' });
-    const data = await res.json();
-
-    if (!data.blogs || data.blogs.length === 0) {
-      alert("❌ لا توجد مدونات في حسابك.");
-      return null;
-    }
-
-    // 🟢 بناء القائمة النصية
-    const blogOptions = data.blogs.map(blog => `${blog.name}::${blog.id}`);
-
-    // 🟡 عرض prompt للمستخدم
-    const choice = prompt(
-      `📝 اختر رقم المدونة للنشر:\n` +
-      blogOptions.map((opt, i) => `${i + 1}. ${opt.split('::')[0]}`).join('\n')
-    );
-
-    // 🔴 تحقق من صحة الاختيار
-    const index = parseInt(choice);
-    if (isNaN(index) || index < 1 || index > data.blogs.length) {
-      alert("⚠️ رقم غير صالح.");
-      return null;
-    }
-
-    // ✅ إعادة الـ blogId المختار
-    return data.blogs[index - 1].id;
-
-  } catch (err) {
-    alert('❌ فشل في تحميل المدونات.');
-    console.error(err);
-    return null;
-  }
+function closeBlogModal() {
+  document.getElementById('blogModal').style.display = 'none';
+  document.getElementById('blogList').innerHTML = '';
 }
 
 
-async function showBlogSelectorAndPublish(title, content, button) {
-  const blogId = await selectBlogFromUser();
-
-  if (!blogId) {
-    button.disabled = false;
-    button.textContent = '📤 نشر إلى Blogger';
-    return;
-  }
-
+async function publishToBlogger(title, content, blogId, button) {
   try {
     const res = await fetch('/publish', {
       method: 'POST',
@@ -320,17 +280,46 @@ async function showBlogSelectorAndPublish(title, content, button) {
       button.style.backgroundColor = 'green';
       window.open(result.url, '_blank');
     } else {
-      button.textContent = '❌ فشل النشر';
-      button.disabled = false;
-      button.style.backgroundColor = 'red';
+      throw new Error('فشل في النشر');
     }
 
-  } catch (err) {
-    console.error('❌ فشل في النشر:', err);
+   } catch (err) {
     button.textContent = '❌ فشل النشر';
     button.disabled = false;
+    button.style.backgroundColor = 'red';
+    console.error(err);
   }
 }
+
+
+function showBlogSelectorAndPublish(title, content, button) {
+  fetch('/blogs', { credentials: 'include' })
+    .then(res => res.json())
+    .then(data => {
+      const blogList = document.getElementById('blogList');
+      blogList.innerHTML = '';
+      data.blogs.forEach(blog => {
+        const li = document.createElement('li');
+        li.textContent = blog.name;
+        li.style.cursor = 'pointer';
+        li.style.padding = '8px';
+        li.style.borderBottom = '1px solid #ddd';
+        li.addEventListener('click', async () => {
+          document.getElementById('blogModal').style.display = 'none';
+          await publishToBlogger(title, content, blog.id, button);
+        });
+        blogList.appendChild(li);
+      });
+      document.getElementById('blogModal').style.display = 'flex';
+    })
+    .catch(err => {
+      alert('❌ فشل في تحميل المدونات');
+      console.error(err);
+      button.disabled = false;
+      button.textContent = '📤 نشر إلى Blogger';
+    });
+}
+
 
 // ✅ عرض المقال مع العنوان المُحسن مسبقًا
 function displayArticleInPage(container, index, title, contentHtml, downloadUrl, fileName, isLoggedIn, topic, language) {
