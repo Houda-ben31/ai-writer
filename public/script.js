@@ -153,21 +153,7 @@ function openWpModal(index) {
   };
 }
 
-async function loadBlogs() {
-  const res = await fetch('/blogs', { credentials: 'include' });
-  const data = await res.json();
-  const blogSelect = document.getElementById('blogSelect');
-  blogSelect.innerHTML = '';
 
-  data.blogs.forEach(blog => {
-    const option = document.createElement('option');
-    option.value = blog.id;
-    option.textContent = blog.name;
-    blogSelect.appendChild(option);
-  });
-
-  blogSelect.style.display = 'block'; // أظهر القائمة عند توفر البيانات
-}
 
 function closeWpModal() {
   document.getElementById('wordpressLoginModal').classList.add('hidden');
@@ -273,6 +259,79 @@ function generateArticleContent(title, body, description = '', keywords = '') {
   `;
 }
  
+
+async function selectBlogFromUser() {
+  try {
+    const res = await fetch('/blogs', { credentials: 'include' });
+    const data = await res.json();
+
+    if (!data.blogs || data.blogs.length === 0) {
+      alert("❌ لا توجد مدونات في حسابك.");
+      return null;
+    }
+
+    // 🟢 بناء القائمة النصية
+    const blogOptions = data.blogs.map(blog => `${blog.name}::${blog.id}`);
+
+    // 🟡 عرض prompt للمستخدم
+    const choice = prompt(
+      `📝 اختر رقم المدونة للنشر:\n` +
+      blogOptions.map((opt, i) => `${i + 1}. ${opt.split('::')[0]}`).join('\n')
+    );
+
+    // 🔴 تحقق من صحة الاختيار
+    const index = parseInt(choice);
+    if (isNaN(index) || index < 1 || index > data.blogs.length) {
+      alert("⚠️ رقم غير صالح.");
+      return null;
+    }
+
+    // ✅ إعادة الـ blogId المختار
+    return data.blogs[index - 1].id;
+
+  } catch (err) {
+    alert('❌ فشل في تحميل المدونات.');
+    console.error(err);
+    return null;
+  }
+}
+
+
+async function showBlogSelectorAndPublish(title, content, button) {
+  const blogId = await selectBlogFromUser();
+
+  if (!blogId) {
+    button.disabled = false;
+    button.textContent = '📤 نشر إلى Blogger';
+    return;
+  }
+
+  try {
+    const res = await fetch('/publish', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, content, blogId })
+    });
+
+    const result = await res.json();
+    if (result.url) {
+      button.textContent = '✅ تم النشر!';
+      button.style.backgroundColor = 'green';
+      window.open(result.url, '_blank');
+    } else {
+      button.textContent = '❌ فشل النشر';
+      button.disabled = false;
+      button.style.backgroundColor = 'red';
+    }
+
+  } catch (err) {
+    console.error('❌ فشل في النشر:', err);
+    button.textContent = '❌ فشل النشر';
+    button.disabled = false;
+  }
+}
+
 // ✅ عرض المقال مع العنوان المُحسن مسبقًا
 function displayArticleInPage(container, index, title, contentHtml, downloadUrl, fileName, isLoggedIn, topic, language) {
   const articleCard = document.createElement('div');
@@ -313,25 +372,21 @@ const suggestedTitle = makeSEOFriendlyTitle(cleanTitle);
     publishBtn.textContent = '⏳ جاري التحقق...';
 
     const customTitle = articleCard.querySelector('.seo-title-input').value.trim() || suggestedTitle;
-const blogId = document.getElementById('blogSelect')?.value;
-if (!blogId) {
-  alert("⚠️ يرجى اختيار مدونة للنشر.");
+// تحقق من حالة تسجيل الدخول
+const authCheck = await fetch('/auth/status', { credentials: 'include' });
+const authStatus = await authCheck.json();
+
+if (!authStatus.loggedIn) {
   publishBtn.disabled = false;
   publishBtn.textContent = '📤 نشر إلى Blogger';
+  window.location.href = '/auth';
   return;
 }
 
-const resultUrl = await fetch('/publish', {
-  method: 'POST',
-  credentials: 'include',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ title: customTitle, content: contentHtml, blogId })
-}).then(res => res.json())
-  .then(data => data.url)
-  .catch(err => {
-    console.error('❌ فشل في النشر:', err);
-    return null;
-  });
+
+// إذا كان مسجلاً → اطلب منه اختيار مدونة وانشر
+const resultUrl = await showBlogSelectorAndPublish(customTitle, contentHtml, publishBtn);
+
 
     if (resultUrl) {
       publishBtn.textContent = '✅ تم النشر!';
