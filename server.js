@@ -38,6 +38,7 @@ app.get('/auth/status', (req, res) => {
 app.get('/auth', (req, res) => {
   const scope = encodeURIComponent('https://www.googleapis.com/auth/blogger');
   const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?response_type=code&client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${GOOGLE_REDIRECT_URI}&scope=${scope}&access_type=offline&prompt=consent`;
+  console.log('🔁 redirect_uri المُرسل هو:', GOOGLE_REDIRECT_URI);
   res.redirect(authUrl);
 });
 
