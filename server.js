@@ -164,10 +164,11 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.post('/generate-article', async (req, res) => {
   const { topic, language = 'ar' } = req.body;
 
-  const prompt =
-    language === 'en'
-      ? `Write a high-quality blog article in English about: ${topic}`
-      : `اكتب مقالة عربية عالية الجودة حول: ${topic}`;
+ const prompt =
+  language === 'en'
+    ? `Write a high-quality blog article in English about: ${topic}. Do not include a sources section.`
+    : `اكتب مقالة عربية عالية الجودة حول: ${topic}. لا تضف قسم المصادر.`;
+
 
   try {
     // 🟢 1. توليد المحتوى الأساسي
@@ -201,6 +202,8 @@ const sourceBox = `
 <h2>المصادر</h2>
 <ul>
   <li><a href="https://ribhonline31.blogspot.com" target="_blank"> ribhonline - مصادر وأدوات مفيدة للمحتوى </a></li>
+   <li><a href="https://ar.wikipedia.org" target="_blank">ويكيبيديا</a></li>
+  <li><a href="https://www.bbc.com/arabic" target="_blank">BBC عربي</a></li>
 </ul>
 `;
 
