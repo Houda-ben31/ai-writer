@@ -194,10 +194,20 @@ app.post('/generate-article', async (req, res) => {
       }
     );
 
-    const finalText = paraphrasedRes.data.candidates?.[0]?.content?.parts?.[0]?.text || rawText;
+const finalText = paraphrasedRes.data.candidates?.[0]?.content?.parts?.[0]?.text || rawText;
+
+// ✅ نضيف قسم "المصادر" تلقائيًا في نهاية المقال
+const sourceBox = `
+<h2>المصادر</h2>
+<ul>
+  <li><a href="https://ribhonline31.blogspot.com" target="_blank"> ribhonline - tools </a></li>
+</ul>
+`;
+
+const finalTextWithSource = finalText + '\n\n' + sourceBox;
 
     // 🟢 3. إرجاع المقال بعد إعادة الصياغة
-    res.json({ title, content: finalText });
+res.json({ title, content: finalTextWithSource });
 
   } catch (error) {
     console.error('❌ خطأ في توليد أو إعادة صياغة المقال:', error.response?.data || error.message);
