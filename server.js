@@ -86,21 +86,39 @@ app.get('/oauth2callback', async (req, res) => {
   }
 });
 
-// ✅ نشر مقال
-app.post('/publish', async (req, res) => {
-  try {
-    const { title, content } = req.body;
-    const token = req.cookies.blogger_token;
-    if (!token) return res.status(401).json({ error: '❌ غير مصرح. قم بتسجيل الدخول أولًا.' });
+app.get('/blogs', async (req, res) => {
+  const token = req.cookies.blogger_token;
+  if (!token) return res.status(401).json({ error: '❌ غير مصرح. قم بتسجيل الدخول أولًا.' });
 
-     const blogsRes = await axios.get('https://www.googleapis.com/blogger/v3/users/self/blogs', {
+  try {
+    const blogsRes = await axios.get('https://www.googleapis.com/blogger/v3/users/self/blogs', {
       headers: { Authorization: `Bearer ${token}` },
     });
 
-    const blogId = blogsRes.data.items?.[0]?.id;
-    if (!blogId) return res.status(400).json({ error: '❌ لم يتم العثور على مدونة' });
+    const blogs = blogsRes.data.items?.map(blog => ({
+      id: blog.id,
+      name: blog.name,
+    })) || [];
 
-     const postRes = await axios.post(`https://www.googleapis.com/blogger/v3/blogs/${blogId}/posts/`, {
+    res.json({ blogs });
+
+  } catch (err) {
+    console.error('❌ خطأ في جلب المدونات:', err.response?.data || err.message);
+    res.status(500).json({ error: 'فشل في جلب المدونات' });
+  }
+});
+
+
+// ✅ نشر مقال
+app.post('/publish', async (req, res) => {
+  try {
+    const { title, content, blogId } = req.body;
+    const token = req.cookies.blogger_token;
+
+    if (!token) return res.status(401).json({ error: '❌ غير مصرح. قم بتسجيل الدخول أولًا.' });
+    if (!blogId) return res.status(400).json({ error: '❌ لم يتم تحديد مدونة للنشر' });
+
+    const postRes = await axios.post(`https://www.googleapis.com/blogger/v3/blogs/${blogId}/posts/`, {
       title,
       content,
     }, {
@@ -114,6 +132,7 @@ app.post('/publish', async (req, res) => {
     return res.status(500).json({ error: 'فشل في النشر إلى Blogger' });
   }
 });
+
  
 
  app.post('/publish-wordpress', async (req, res) => {

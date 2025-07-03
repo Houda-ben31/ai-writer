@@ -153,6 +153,22 @@ function openWpModal(index) {
   };
 }
 
+async function loadBlogs() {
+  const res = await fetch('/blogs', { credentials: 'include' });
+  const data = await res.json();
+  const blogSelect = document.getElementById('blogSelect');
+  blogSelect.innerHTML = '';
+
+  data.blogs.forEach(blog => {
+    const option = document.createElement('option');
+    option.value = blog.id;
+    option.textContent = blog.name;
+    blogSelect.appendChild(option);
+  });
+
+  blogSelect.style.display = 'block'; // أظهر القائمة عند توفر البيانات
+}
+
 function closeWpModal() {
   document.getElementById('wordpressLoginModal').classList.add('hidden');
 }
@@ -297,7 +313,25 @@ const suggestedTitle = makeSEOFriendlyTitle(cleanTitle);
     publishBtn.textContent = '⏳ جاري التحقق...';
 
     const customTitle = articleCard.querySelector('.seo-title-input').value.trim() || suggestedTitle;
-    const resultUrl = await handleBloggerPublishing(customTitle, contentHtml, topic, language);
+const blogId = document.getElementById('blogSelect')?.value;
+if (!blogId) {
+  alert("⚠️ يرجى اختيار مدونة للنشر.");
+  publishBtn.disabled = false;
+  publishBtn.textContent = '📤 نشر إلى Blogger';
+  return;
+}
+
+const resultUrl = await fetch('/publish', {
+  method: 'POST',
+  credentials: 'include',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ title: customTitle, content: contentHtml, blogId })
+}).then(res => res.json())
+  .then(data => data.url)
+  .catch(err => {
+    console.error('❌ فشل في النشر:', err);
+    return null;
+  });
 
     if (resultUrl) {
       publishBtn.textContent = '✅ تم النشر!';
