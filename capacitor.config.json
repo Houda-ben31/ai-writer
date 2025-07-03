@@ -1,0 +1,9 @@
+{
+  "appId": "com.bestsitesfor.writer",
+  "appName": "AI Writer",
+"webDir": "public",
+  "server": {
+    "url": "https://ai-writer-sgka.onrender.com",
+    "cleartext": true
+  }
+}
