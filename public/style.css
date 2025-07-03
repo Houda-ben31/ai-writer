@@ -569,3 +569,7 @@ textarea:focus {
   margin: 10px 0;
   padding: 5px;
 }
+.article-content a {
+  color: #0077cc;
+  text-decoration: underline;
+}

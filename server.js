@@ -200,7 +200,7 @@ const finalText = paraphrasedRes.data.candidates?.[0]?.content?.parts?.[0]?.text
 const sourceBox = `
 <h2>المصادر</h2>
 <ul>
-  <li><a href="https://ribhonline31.blogspot.com" target="_blank"> ribhonline - tools </a></li>
+  <li><a href="https://ribhonline31.blogspot.com" target="_blank"> ribhonline - مصادر وأدوات مفيدة للمحتوى </a></li>
 </ul>
 `;
 
