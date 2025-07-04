@@ -170,32 +170,29 @@ function closeWpModal() {
 
   const pending = localStorage.getItem('pendingPost');
   if (pending) {
-    const { title, content, language = 'ar' } = JSON.parse(pending);
-    console.log('🔁 محاولة إعادة نشر المقال بعد تسجيل الدخول...');
+    const { title, content, topic = '', language = 'ar' } = JSON.parse(pending);
+    console.log('📄 تم استعادة المقال بعد تسجيل الدخول');
 
-    const result = await handleBloggerPublishing(title, content, language);
+    // ✅ عرض المقال فقط — بدون نشر تلقائي
+    const isLoggedIn = true;
+    const fileName = sanitizeFileName(title);
+    const cleanedContent = cleanHTMLContent(content, language);
+    const articleUrl = '#';
 
-    if (result) {
-      alert('✅ تم نشر المقال بعد تسجيل الدخول');
-      window.open(result, '_blank');
-
-      const isLoggedIn = true;
-      const fileName = sanitizeFileName(title);
-      const cleanedContent = cleanHTMLContent(content, language);
-const articleUrl = result; // ← هذا هو رابط المقال
-
-      displayArticleInPage(
-        document.getElementById('articlesOutput'),
-        0,
-        title,
-        cleanedContent,
-        articleUrl,
-        fileName,
-        isLoggedIn
-      );
-    } else {
-      alert('❌ فشل في النشر بعد تسجيل الدخول، يرجى المحاولة يدويًا.');
-    }
+    displayArticleInPage(
+      document.getElementById('articlesOutput'),
+      0,
+      title,
+      cleanedContent,
+      articleUrl,
+      fileName,
+      isLoggedIn,
+      topic,
+      language
+    );
+    
+  // ✅ تنبيه للمستخدم بعد العرض
+  alert('✅ تم استعادة المقال بعد تسجيل الدخول. يمكنك الآن الضغط على "📤 نشر إلى Blogger" لاختيار المدونة ونشره.');
 
     localStorage.removeItem('pendingPost');
   }
