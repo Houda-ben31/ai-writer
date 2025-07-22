@@ -71,8 +71,8 @@
 
             <div class="input-group">
                 <div id="customTopic" class="hidden">
-                    <label>عنوان المقال المخصص</label>
-                    <textarea id="customTopicInput" rows="2" placeholder="أدخل عنوان المقال المطلوب..."></textarea>
+<label>عناوين المقالات (واحد في كل سطر)</label>
+<textarea id="customTopicInput" rows="5" placeholder="أدخل كل عنوان مقال في سطر منفصل..."></textarea>
                 </div>
                 
                 <!-- نافذة اختيار المدونة -->
@@ -84,14 +84,10 @@
   </div>
 </div>
 
-                <label>عدد المقالات</label>
+                <label>عدد المقالات نصيحة لا تضع اكثر من 5:</label>
                 <input type="number" id="articleCount" value="1" min="1" max="50">
             </div>
-
-            <div class="progress-container">
-                <div class="progress-bar" id="progressBar"></div>
-            </div>
-
+ 
             <label for="language">اختر اللغة:</label>
 <select id="language">
   <option value="ar" selected>العربية</option>
@@ -106,7 +102,11 @@
             </button>
         </div>
     </div>
-
+<div class="progress-container">
+  <div class="progress-bar" id="progressBar">
+    <span id="progressText" style="color: white; padding-left: 5px; font-weight: bold;"></span>
+  </div>
+</div>
 
 
     <div id="wordpressLoginModal" class="modal hidden">
@@ -151,21 +151,22 @@
             document.getElementById('apiSection').classList.add('hidden');
             document.getElementById('mainUI').classList.remove('hidden');
         }
-          function validateInputs(topic, count) {
-            if(!apiKey) {
-                showError('الرجاء إدخال مفتاح API أولاً');
-                return false;
-            }
-            if(count < 1 || count > 50) {
-                showError('الرجاء إدخال عدد بين 1 و 50');
-                return false;
-            }
-            if(currentCategory === '4' && !topic) {
-                showError('الرجاء إدخال عنوان المقال المخصص');
-                return false;
-            }
-            return true;
-        }
+       function validateInputs(topics, count) {
+  if (!apiKey) {
+    showError('الرجاء إدخال مفتاح API أولاً');
+    return false;
+  }
+  if (count < 1 || count > 50) {
+    showError('الرجاء إدخال عدد بين 1 و 50');
+    return false;
+  }
+  if (currentCategory === '4' && topics.length !== count) {
+    showError(`عدد العناوين (${topics.length}) يجب أن يساوي عدد المقالات (${count})`);
+    return false;
+  }
+  return true;
+}
+
 
 // ✅ دالة تحسين عنوان المقال تلقائيًا
 function makeSEOFriendlyTitle(title) {
@@ -274,11 +275,15 @@ async function generateArticles() {
     const count = parseInt(document.getElementById('articleCount').value) || 1;
     const language = document.getElementById('language').value;
 
-    const topic = currentCategory === '4'
-      ? document.getElementById('customTopicInput').value.trim()
-      : getDefaultTopic(language);
+  const topics = currentCategory === '4'
+  ? document.getElementById('customTopicInput').value
+      .split('\n')
+      .map(t => t.trim())
+      .filter(t => t !== '')
+  : Array.from({ length: count }, () => getDefaultTopic(language));
 
-    if (!validateInputs(topic, count)) return;
+
+if (!validateInputs(topics, count)) return;
 
     showLoading();
     resetProgress();
@@ -292,7 +297,8 @@ async function generateArticles() {
        updateProgress(i * stepWeight + 5);
 
       try {
-        const content = await fetchArticle(topic, currentCategory, language);
+const topic = topics[i];
+const content = await fetchArticle(topic, currentCategory, language);
         updateProgress(i * stepWeight + 20);
        const articleBodyContent = content;
        const title = articleBodyContent.split('\n')[0].replace(/^#+/, '').trim(); // توليد العنوان من أول سطر
@@ -300,7 +306,7 @@ const metaTags = generateMetaTags(articleBodyContent, topic, title, '', language
 const htmlContent = metaTags + cleanHTMLContent(articleBodyContent, language);
 
 
-         const safeFileName = sanitizeFileName(`مقال_${i + 1}_${topic}`);
+const safeFileName = sanitizeFileName(`مقال_${i + 1}_${topic.slice(0, 40)}`);
         zip.file(`${safeFileName}.txt`, htmlContent);
 
         const articleBlob = new Blob([htmlContent], { type: 'text/html' });
@@ -336,7 +342,7 @@ const htmlContent = metaTags + cleanHTMLContent(articleBodyContent, language);
     const zipUrl = URL.createObjectURL(zipBlob);
     const zipLink = document.createElement('a');
     zipLink.href = zipUrl;
-    zipLink.download = `مقالات_${sanitizeFileName(topic)}.zip`;
+zipLink.download = `مقالات_مجموعة_${new Date().toISOString().split('T')[0]}.zip`;
     zipLink.click();
 
     articlesContainer.style.display = 'flex';
@@ -471,10 +477,15 @@ async function fetchArticle(topic, currentCategory, language = 'ar') {
 
 function updateProgress(percentage) {
   const progressBar = document.getElementById('progressBar');
+  const progressText = document.getElementById('progressText');
   if (progressBar) {
     progressBar.style.width = `${Math.floor(percentage)}%`;
   }
+  if (progressText) {
+    progressText.textContent = `${Math.floor(percentage)}%`;
+  }
 }
+
 
 function resetProgress() {
   setTimeout(() => {
@@ -667,6 +678,32 @@ const keywords = extractKeywords(topic, currentCategory, language);
     </script>
  <div id="articlesOutput" style="display: flex; flex-direction: column;"></div>
 <script src="script.js" defer></script>
+
+<div style="margin-top: 40px; text-align: center; font-family: 'Tajawal', sans-serif; font-size: 15px;">
+  <a href="/privacy.html" target="_blank" style="
+    margin: 0 10px;
+    color: #007bff;
+    text-decoration: none;
+    border-bottom: 2px solid transparent;
+    transition: all 0.3s ease;
+  " onmouseover="this.style.borderBottom='2px solid #007bff'" onmouseout="this.style.borderBottom='2px solid transparent'">
+    سياسة الخصوصية
+  </a>
+
+  <span style="color: #999;">|</span>
+
+  <a href="/terms.html" target="_blank" style="
+    margin: 0 10px;
+    color: #007bff;
+    text-decoration: none;
+    border-bottom: 2px solid transparent;
+    transition: all 0.3s ease;
+  " onmouseover="this.style.borderBottom='2px solid #007bff'" onmouseout="this.style.borderBottom='2px solid transparent'">
+    شروط الاستخدام
+  </a>
+</div>
+
+
 
 </body>
 </html>

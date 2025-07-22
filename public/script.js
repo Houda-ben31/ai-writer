@@ -272,15 +272,19 @@ async function publishToBlogger(title, content, blogId, button) {
     });
 
     const result = await res.json();
+
     if (result.url) {
       button.textContent = '✅ تم النشر!';
       button.style.backgroundColor = 'green';
-      window.open(result.url, '_blank');
+
+      // ✅ إشعار منبثق مع رابط عرض المقال
+      showToastWithLink('📄 تم نشر المقال بنجاح!', result.url);
+
     } else {
       throw new Error('فشل في النشر');
     }
 
-   } catch (err) {
+  } catch (err) {
     button.textContent = '❌ فشل النشر';
     button.disabled = false;
     button.style.backgroundColor = 'red';
@@ -288,6 +292,25 @@ async function publishToBlogger(title, content, blogId, button) {
   }
 }
 
+function showToastWithLink(message, link) {
+  // إزالة أي Toast قديم
+  const existing = document.querySelector('.toast-popup');
+  if (existing) existing.remove();
+
+  const toast = document.createElement('div');
+  toast.className = 'toast-popup';
+  toast.innerHTML = `
+    <span>${message}</span>
+    <a href="${link}" target="_blank">👁️ عرض المقال</a>
+  `;
+
+  document.body.appendChild(toast);
+
+  // إزالة التوست بعد 6 ثوانٍ
+  setTimeout(() => {
+    toast.remove();
+  }, 6000);
+}
 
 function showBlogSelectorAndPublish(title, content, button) {
   fetch('/blogs', { credentials: 'include' })
