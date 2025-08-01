@@ -1,6 +1,17 @@
+// ========================
+// 🔹 تعريف المتغيرات العامة
+// ========================
+let currentCategory = '1';
+let apiKey = localStorage.getItem('gemini_api_key') || '';
 let wpCredentials = {};
-const BASE_URL = 'https://ai-writer-sgka.onrender.com';
+// يحدد BASE_URL تلقائيًا حسب مكان فتح الصفحة
+const BASE_URL = window.location.hostname.includes('localhost') || window.location.hostname.includes('127.0.0.1')
+  ? 'http://localhost:3000'   // إذا كنت تعمل محليًا
+  : 'https://ai-writer-sgka.onrender.com'; // السيرفر على Render
 
+// ========================
+// 🔹 دالة تنظيف المقال HTML
+// ========================
 function cleanHTMLContent(rawHtml, language = 'ar') {
   const direction = language === 'en' ? 'ltr' : 'rtl';
   const textAlign = direction === 'ltr' ? 'left' : 'right';
@@ -62,6 +73,25 @@ function cleanHTMLContent(rawHtml, language = 'ar') {
 
   return `${ARTICLE_STYLE}<div class="article-body" dir="${direction}" lang="${langAttr}">${cleaned}</div>`;
 }
+
+// ========================
+// 🔹 عند تحميل الصفحة
+// ========================
+document.addEventListener('DOMContentLoaded', () => {
+  // 1️⃣ تفعيل بطاقات التصنيف
+  document.querySelectorAll('.category-card').forEach(card => {
+    card.addEventListener('click', () => {
+      document.querySelectorAll('.category-card').forEach(c => c.classList.remove('active'));
+      card.classList.add('active');
+      currentCategory = card.dataset.category;
+      document.getElementById('customTopic').classList.toggle('hidden', currentCategory !== '4');
+    });
+  });
+
+  // 2️⃣ إظهار الواجهة الرئيسية إذا وجد API Key
+  if (apiKey) toggleMainUI();
+});
+
 
 function generateMetaTags(content, topic, title, _unused = '', language = 'ar') {
   // ✅ لا تضف الوسوم إذا كانت موجودة مسبقًا في المقال
@@ -158,81 +188,101 @@ function openWpModal(index) {
 function closeWpModal() {
   document.getElementById('wordpressLoginModal').classList.add('hidden');
 }
-
- window.addEventListener('DOMContentLoaded', async () => {
+// ===============================
+// استعادة المقال المحفوظ بعد تسجيل الدخول
+// ===============================
+window.addEventListener('DOMContentLoaded', async () => {
+  // استرجاع بيانات WordPress لو موجودة
   const savedWp = sessionStorage.getItem('wpCredentials');
   if (savedWp) {
     wpCredentials = JSON.parse(savedWp);
     console.log('📦 تم استعادة بيانات WordPress من الجلسة');
   }
 
+  // تحقق من حالة تسجيل الدخول
   await checkAuthStatus();
 
+  // تحقق إن كنا عائدين من تسجيل الدخول
+  const isFromAuth = sessionStorage.getItem('returnFromAuth') === 'true';
+  sessionStorage.removeItem('returnFromAuth'); // حذف العلامة بعد استخدامها
+
+  // لو في مقال محفوظ
   const pending = localStorage.getItem('pendingPost');
-  if (pending) {
+  if (isFromAuth && pending) {
+    const container = document.getElementById('articlesOutput');
+    if (!container) {
+      console.warn('⚠️ لم يتم العثور على عنصر articlesOutput لعرض المقال المستعاد.');
+      return;
+    }
+
     const { title, content, topic = '', language = 'ar' } = JSON.parse(pending);
     console.log('📄 تم استعادة المقال بعد تسجيل الدخول');
 
-    // ✅ عرض المقال فقط — بدون نشر تلقائي
+    // تحديد حالة تسجيل الدخول
     const isLoggedIn = true;
     const fileName = sanitizeFileName(title);
     const cleanedContent = cleanHTMLContent(content, language);
-    const articleUrl = '#';
 
+    // عرض المقال مباشرة في الصفحة
     displayArticleInPage(
-      document.getElementById('articlesOutput'),
+      container,
       0,
       title,
       cleanedContent,
-      articleUrl,
+      '#',
       fileName,
       isLoggedIn,
       topic,
       language
     );
-    
-  // ✅ تنبيه للمستخدم بعد العرض
-  alert('✅ تم استعادة المقال بعد تسجيل الدخول. يمكنك الآن الضغط على "📤 نشر إلى Blogger" لاختيار المدونة ونشره.');
 
-    localStorage.removeItem('pendingPost');
+    alert('✅ تم استعادة المقال بعد تسجيل الدخول.');
+    localStorage.removeItem('pendingPost'); // حذف المقال بعد العرض
   }
 });
 
+// ===============================
+// 2️⃣ وظيفة توليد المقال
+// ===============================
 async function generateArticleWithProgress(topic, index, language) {
   showLoading();
   resetProgress();
 
-  updateProgress(10); // البداية
+  updateProgress(10);
 
-  // 1. توليد العنوان والمحتوى
-  const response = await fetch('/generate-article', {
-    method: 'POST',
+const response = await fetch(`${BASE_URL}/generate-article`, {    method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ topic, language }), // ← أضفنا اللغة
+    body: JSON.stringify({ topic, language }),
   });
 
   updateProgress(40);
 
   const articleData = await response.json();
-  const { title, content } = articleData;
+ const { title, content } = articleData;
 
-  // 2. بناء المحتوى بدون صورة
-  const contentWithoutImage = content;
+   updateProgress(70);
 
-  updateProgress(70);
-
-  // 3. عرض المقال في الواجهة
-  const articleUrl = '#'; // مؤقت فقط
+  const articleUrl = '#';
   const fileName = `article_${index + 1}`;
 
-  // جلب حالة الدخول الحالية لاستخدامها عند العرض
-  const isLoggedIn = await checkIfLoggedIn();
+   const isLoggedIn = await checkIfLoggedIn();
 
-  displayArticleInPage(document.getElementById('output'), index, title, contentWithoutImage, articleUrl, fileName, isLoggedIn);
+  displayArticleInPage(
+    document.getElementById('articlesOutput'),
+    index,
+    title,
+    content,
+    articleUrl,
+    fileName,
+    isLoggedIn,
+    topic,
+    language
+  );
 
   updateProgress(100);
   showSuccess('✅ تم إنشاء المقال بنجاح!');
 }
+
 
 
 function sanitizeFileName(name) {
@@ -260,49 +310,236 @@ function closeBlogModal() {
   document.getElementById('blogModal').style.display = 'none';
   document.getElementById('blogList').innerHTML = '';
 }
+ // ✅ عرض المقال مع العنوان المُحسن مسبقًا
+function displayArticleInPage(container, index, title, contentHtml, downloadUrl, fileName, isLoggedIn, topic, language) {
+  const articleCard = document.createElement('div');
+  articleCard.className = 'article-card';
 
+  const cleanTitle = stripHTML(title);
+  const suggestedTitle = makeSEOFriendlyTitle(cleanTitle);
 
-async function publishToBlogger(title, content, blogId, button) {
-  try {
-    const res = await fetch('/publish', {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, content, blogId })
-    });
+  // ===== العنوان وحقل تعديل العنوان =====
+  const h2 = document.createElement('h2');
+  h2.textContent = suggestedTitle;
 
-    const result = await res.json();
+  const seoInput = document.createElement('input');
+  seoInput.type = 'text';
+  seoInput.className = 'seo-title-input';
+  seoInput.value = suggestedTitle;
+  seoInput.placeholder = "📝 يمكنك تعديل العنوان لتحسين السيو";
 
-    if (result.url) {
-      button.textContent = '✅ تم النشر!';
-      button.style.backgroundColor = 'green';
+  // ===== محتوى المقال =====
+  const articleContent = document.createElement('div');
+  articleContent.className = 'article-content';
+  articleContent.innerHTML = contentHtml; 
 
-      // ✅ إشعار منبثق مع رابط عرض المقال
-      showToastWithLink('📄 تم نشر المقال بنجاح!', result.url);
+  // ===== أزرار التحكم =====
+  const actions = document.createElement('div');
+  actions.className = 'article-actions';
 
-    } else {
-      throw new Error('فشل في النشر');
+  const downloadBtn = document.createElement('a');
+  downloadBtn.href = '#';
+  downloadBtn.className = 'download-btn';
+  downloadBtn.dataset.filename = fileName;
+  downloadBtn.textContent = '💾 تحميل TXT';
+
+  const copyBtn = document.createElement('button');
+  copyBtn.className = 'copy-btn';
+  copyBtn.textContent = '📋 نسخ المقال';
+
+  const publishBtn = document.createElement('button');
+  publishBtn.className = 'publish-btn';
+  publishBtn.dataset.index = index;
+  publishBtn.textContent = '📤 نشر إلى Blogger';
+
+  const publishWpBtn = document.createElement('button');
+  publishWpBtn.className = 'publish-wordpress-btn';
+  publishWpBtn.dataset.index = index;
+  publishWpBtn.textContent = 'نشر في WordPress';
+
+  actions.append(downloadBtn, copyBtn, publishBtn, publishWpBtn);
+
+  // ===== رابط أسفل المقال =====
+  const footerDiv = document.createElement('div');
+  footerDiv.style.textAlign = 'center';
+  footerDiv.style.marginTop = '20px';
+
+  const footerLink = document.createElement('a');
+  footerLink.href = 'https://ribhonline31.blogspot.com';
+  footerLink.target = '_blank';
+  footerLink.textContent = '🔗 زوروا موقعنا: ribhonline - أدوات مفيدة';
+  footerLink.style.cssText = `
+    display:inline-block;
+    background-color:#28a745;
+    color:white;
+    padding:10px 20px;
+    border-radius:8px;
+    font-weight:bold;
+    text-decoration:none;
+    box-shadow:0 2px 6px rgba(0,0,0,0.2);
+    transition:background 0.3s ease;
+  `;
+  footerLink.addEventListener('mouseover', () => footerLink.style.backgroundColor = '#218838');
+  footerLink.addEventListener('mouseout', () => footerLink.style.backgroundColor = '#28a745');
+
+  footerDiv.appendChild(footerLink);
+
+  // ===== دمج العناصر =====
+  articleCard.append(h2, seoInput, articleContent, actions, footerDiv);
+  container.appendChild(articleCard);
+
+  // ===== الأحداث =====
+
+  // تحميل المقال كملف TXT
+  downloadBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    const temp = document.createElement('div');
+    temp.innerHTML = contentHtml;
+    let plainText = temp.innerText.trim();
+    plainText += `\n\n🔗 زوروا موقعنا: ribhonline - أدوات مفيدة\nhttps://ribhonline31.blogspot.com`;
+    downloadAsText(fileName, plainText);
+  });
+
+  // نسخ المقال
+  copyBtn.addEventListener('click', () => copyArticleToClipboard(contentHtml, copyBtn));
+
+  // نشر المقال إلى Blogger
+  publishBtn.addEventListener('click', async () => {
+    publishBtn.disabled = true;
+    publishBtn.textContent = '⏳ جاري التحقق...';
+
+    const customTitle = seoInput.value.trim() || suggestedTitle;
+
+    const authCheck = await fetch(`${BASE_URL}/auth/status`, { credentials: 'include' });
+    const authStatus = await authCheck.json();
+
+    if (!authStatus.loggedIn) {
+      // ✅ حفظ المقال مؤقتًا
+      localStorage.setItem('pendingPost', JSON.stringify({
+        title: customTitle,
+        content: contentHtml,
+        topic: topic || '',
+        language: language || 'ar'
+      }));
+      sessionStorage.setItem('returnFromAuth', 'true');
+
+      publishBtn.disabled = false;
+      publishBtn.textContent = '📤 نشر إلى Blogger';
+
+      // ✅ إرسال رابط الصفحة الحالي ليعود المستخدم إليه بعد تسجيل الدخول
+      const currentUrl = window.location.href;
+      window.location.href = `${BASE_URL}/auth?redirect=${encodeURIComponent(currentUrl)}`;
+      return;
     }
 
+    showBlogSelectorAndPublish(customTitle, contentHtml, topic, language);
+
+    publishBtn.disabled = false;
+    publishBtn.textContent = '📤 نشر إلى Blogger';
+  });
+
+  // نشر في WordPress
+  publishWpBtn.addEventListener('click', () => openWpModal(index));
+}
+
+// ✅ دالة اختيار المدونة والنشر
+async function showBlogSelectorAndPublish(title, content, button) {
+  try {
+    // 1️⃣ جلب قائمة المدونات
+    const res = await fetch(`${BASE_URL}/blogs`, { credentials: 'include' });
+    const data = await res.json();
+
+    if (!data.blogs || data.blogs.length === 0) {
+      alert('❌ لم يتم العثور على أي مدونة على حسابك.');
+      button.disabled = false;
+      button.textContent = '📤 نشر إلى Blogger';
+      return;
+    }
+
+    // 2️⃣ إنشاء نافذة منبثقة لاختيار المدونة
+    const modal = document.createElement('div');
+    modal.className = 'blog-selector-modal';
+    modal.innerHTML = `
+      <div class="modal-content">
+        <h3>اختر مدونة للنشر</h3>
+        <ul class="blogs-list"></ul>
+        <button class="close-btn">إلغاء</button>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    const listDiv = modal.querySelector('.blogs-list');
+
+    // 3️⃣ إنشاء عنصر <li> لكل مدونة
+    data.blogs.forEach(blog => {
+      const li = document.createElement('li');
+      li.textContent = blog.name;
+      li.style.cursor = 'pointer';
+      li.style.padding = '8px';
+      li.style.borderBottom = '1px solid #ddd';
+
+      li.addEventListener('click', async () => {
+        li.textContent = '⏳ جاري النشر...';
+        li.style.pointerEvents = 'none';
+
+        // 4️⃣ النشر مباشرة عند الضغط على المدونة
+        const publishRes = await fetch(`${BASE_URL}/publish`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title, content, blogId: blog.id }),
+        });
+
+        const result = await publishRes.json();
+        if (publishRes.ok && result.url) {
+          alert(`✅ تم نشر المقال بنجاح!\nرابط المقال: ${result.url}`);
+        } else {
+          alert(`❌ فشل النشر: ${result.error || 'خطأ غير معروف'}`);
+        }
+
+        document.body.removeChild(modal);
+        button.disabled = false;
+        button.textContent = '📤 نشر إلى Blogger';
+      });
+
+      listDiv.appendChild(li);
+    });
+
+    // 5️⃣ زر الإغلاق
+    modal.querySelector('.close-btn').addEventListener('click', () => {
+      document.body.removeChild(modal);
+      button.disabled = false;
+      button.textContent = '📤 نشر إلى Blogger';
+    });
+
   } catch (err) {
-    button.textContent = '❌ فشل النشر';
+    console.error('خطأ في النشر:', err);
+    alert('❌ حدث خطأ أثناء محاولة النشر.');
     button.disabled = false;
-    button.style.backgroundColor = 'red';
-    console.error(err);
+    button.textContent = '📤 نشر إلى Blogger';
   }
 }
 
+
 function showToastWithLink(message, link) {
-  // إزالة أي Toast قديم
-  const existing = document.querySelector('.toast-popup');
-  if (existing) existing.remove();
+  // إزالة جميع التوستات القديمة
+  document.querySelectorAll('.toast-popup').forEach(el => el.remove());
 
   const toast = document.createElement('div');
   toast.className = 'toast-popup';
-  toast.innerHTML = `
-    <span>${message}</span>
-    <a href="${link}" target="_blank">👁️ عرض المقال</a>
-  `;
+
+  // نص الرسالة
+  const span = document.createElement('span');
+  span.textContent = message; // آمن ضد XSS
+
+  // الرابط
+  const a = document.createElement('a');
+  a.href = link;
+  a.target = '_blank';
+  a.textContent = '👁️ عرض المقال';
+
+  toast.appendChild(span);
+  toast.appendChild(a);
 
   document.body.appendChild(toast);
 
@@ -312,137 +549,7 @@ function showToastWithLink(message, link) {
   }, 6000);
 }
 
-function showBlogSelectorAndPublish(title, content, button) {
-  fetch('/blogs', { credentials: 'include' })
-    .then(res => res.json())
-    .then(data => {
-      const blogList = document.getElementById('blogList');
-      blogList.innerHTML = '';
-      data.blogs.forEach(blog => {
-        const li = document.createElement('li');
-        li.textContent = blog.name;
-        li.style.cursor = 'pointer';
-        li.style.padding = '8px';
-        li.style.borderBottom = '1px solid #ddd';
-        li.addEventListener('click', async () => {
-          document.getElementById('blogModal').style.display = 'none';
-          await publishToBlogger(title, content, blog.id, button);
-        });
-        blogList.appendChild(li);
-      });
-      document.getElementById('blogModal').style.display = 'flex';
-    })
-    .catch(err => {
-      alert('❌ فشل في تحميل المدونات');
-      console.error(err);
-      button.disabled = false;
-      button.textContent = '📤 نشر إلى Blogger';
-    });
-}
-
-
-// ✅ عرض المقال مع العنوان المُحسن مسبقًا
-function displayArticleInPage(container, index, title, contentHtml, downloadUrl, fileName, isLoggedIn, topic, language) {
-  const articleCard = document.createElement('div');
-  articleCard.className = 'article-card';
-
-const cleanTitle = stripHTML(title);
-const suggestedTitle = makeSEOFriendlyTitle(cleanTitle);
-
-  articleCard.innerHTML = `
-    <h2>${suggestedTitle}</h2>
-    <input type="text" class="seo-title-input" value="${suggestedTitle}" placeholder="📝 يمكنك تعديل العنوان لتحسين السيو">
-    <div class="article-content">${contentHtml}</div>
-    <div class="article-actions">
-      <a href="#" class="download-btn" data-filename="${fileName}">💾 تحميل TXT</a>
-      <button class="copy-btn">📋 نسخ المقال</button>
-      <button class="publish-btn" data-index="${index}">📤 نشر إلى Blogger</button>
-      <button class="publish-wordpress-btn" data-index="${index}">نشر في WordPress</button>
-    </div>
-   <div style="text-align: center; margin-top: 20px;">
-  <a href="https://ribhonline31.blogspot.com" target="_blank"
-     style="
-       display: inline-block;
-       background-color: #28a745;
-       color: white;
-       padding: 10px 20px;
-       border-radius: 8px;
-       font-weight: bold;
-       text-decoration: none;
-       box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-       transition: background 0.3s ease;
-     "
-     onmouseover="this.style.backgroundColor='#218838'"
-     onmouseout="this.style.backgroundColor='#28a745'"
-  >
-    🔗 زوروا موقعنا: ribhonline - أدوات مفيدة
-  </a>
-</div>
-  `;
-
-  container.appendChild(articleCard);
-
-   const downloadBtn = articleCard.querySelector('.download-btn');
-  downloadBtn.addEventListener('click', (e) => {
-  e.preventDefault();
-  const fileName = downloadBtn.getAttribute('data-filename');
-
-  // استخراج النص من HTML
-  const temp = document.createElement('div');
-  temp.innerHTML = contentHtml;
-  let plainText = temp.innerText.trim();
-
-  // ✅ أضف رابط الموقع دائمًا
-  plainText += `\n\n🔗 زوروا موقعنا: ribhonline - أدوات مفيدة\nhttps://ribhonline31.blogspot.com`;
-
-  // ثم تحميله كملف نصي
-  downloadAsText(fileName, plainText);
-});
-
-   const copyBtn = articleCard.querySelector('.copy-btn');
-  copyBtn.addEventListener('click', () => {
-    copyArticleToClipboard(contentHtml, copyBtn);
-  });
-
-   const publishBtn = articleCard.querySelector('.publish-btn');
-  publishBtn.addEventListener('click', async () => {
-    publishBtn.disabled = true;
-    publishBtn.textContent = '⏳ جاري التحقق...';
-
-    const customTitle = articleCard.querySelector('.seo-title-input').value.trim() || suggestedTitle;
-// تحقق من حالة تسجيل الدخول
-const authCheck = await fetch('/auth/status', { credentials: 'include' });
-const authStatus = await authCheck.json();
-
-if (!authStatus.loggedIn) {
-  publishBtn.disabled = false;
-  publishBtn.textContent = '📤 نشر إلى Blogger';
-  window.location.href = '/auth';
-  return;
-}
-
-
-// إذا كان مسجلاً → اطلب منه اختيار مدونة وانشر
-const resultUrl = await showBlogSelectorAndPublish(customTitle, contentHtml, publishBtn);
-
-
-    if (resultUrl) {
-      publishBtn.textContent = '✅ تم النشر!';
-      publishBtn.style.backgroundColor = 'green';
-      publishBtn.style.cursor = 'default';
-    } else {
-      publishBtn.textContent = '❌ فشل النشر';
-      publishBtn.disabled = false;
-      publishBtn.style.backgroundColor = 'red';
-    }
-  });
-
-  const publishWpBtn = articleCard.querySelector('.publish-wordpress-btn');
-  publishWpBtn.addEventListener('click', () => {
-    openWpModal(index);
-  });
-}
-
+ 
 function copyArticleToClipboard(htmlContent, button) {
   const tempElement = document.createElement('div');
   tempElement.innerHTML = htmlContent;

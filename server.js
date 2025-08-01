@@ -1,50 +1,75 @@
 const express = require('express');
 const axios = require('axios');
 const dotenv = require('dotenv');
-
-const cookieParser = require('cookie-parser');
+ const cookieParser = require('cookie-parser');
 const cors = require('cors');
 const path = require('path');
 
- dotenv.config();
+dotenv.config();
 
 const app = express();
-app.use(express.static('public'));
-app.use(express.json({ limit: '2mb' }));
+ app.use(express.json({ limit: '2mb' }));
 app.use(cookieParser());
 
- 
+// ====== الإعدادات ======
 const {
-   PORT = 3000,
+  PORT = 3000,
   GOOGLE_CLIENT_ID,
   GOOGLE_CLIENT_SECRET,
   GOOGLE_REDIRECT_URI,
+  GEMINI_API_KEY,
+  NODE_ENV
 } = process.env;
-
-
+ 
 app.use(cors({
-  origin: ['https://bestsitesfor.com', 'capacitor://localhost', 'http://localhost:3000' , 'http://127.0.0.1:5500' , 'https://ai-writer-sgka.onrender.com' , 'http://localhost:5500'],
+  origin: [
+    'https://bestsitesfor.com',
+    'capacitor://localhost',
+    'http://localhost:3000',
+    'http://127.0.0.1:5500',
+    'https://ai-writer-sgka.onrender.com',
+    'http://localhost:5500'
+  ],
   credentials: true,
 }));
 
-// ✅ حالة الدخول
+// ===============================
+// 1️⃣ حالة تسجيل الدخول
+// ===============================
 app.get('/auth/status', (req, res) => {
   const token = req.cookies.blogger_token;
   res.json({ loggedIn: !!token });
 });
 
-
-// ✅ بدء OAuth
+// ===============================
+// 2️⃣ بدء OAuth
+// ===============================
 app.get('/auth', (req, res) => {
   const scope = encodeURIComponent('https://www.googleapis.com/auth/blogger');
-  const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?response_type=code&client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${GOOGLE_REDIRECT_URI}&scope=${scope}&access_type=offline&prompt=consent`;
+  
+  // ✅ إذا جاء redirect من العميل استخدمه
+  const redirectAfter = req.query.redirect || req.get('Referer') || '/index.html';
+
+  const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?response_type=code
+    &client_id=${GOOGLE_CLIENT_ID}
+    &redirect_uri=${GOOGLE_REDIRECT_URI}
+    &scope=${scope}
+    &access_type=offline
+    &prompt=consent
+    &state=${encodeURIComponent(redirectAfter)}`.replace(/\s+/g, '');
+
   console.log('🔁 redirect_uri المُرسل هو:', GOOGLE_REDIRECT_URI);
   res.redirect(authUrl);
 });
 
-// ✅ استلام رمز التفويض
+
+// ===============================
+// 3️⃣ استلام رمز التفويض
+// ===============================
 app.get('/oauth2callback', async (req, res) => {
   const code = req.query.code;
+  const redirectAfter = req.query.state || '/index.html';
+
   if (!code) return res.status(400).send('❌ لم يتم توفير رمز التفويض');
 
   try {
@@ -68,24 +93,31 @@ app.get('/oauth2callback', async (req, res) => {
       maxAge: 3600 * 1000,
     });
 
-
+    // صفحة نجاح مؤقتة
     res.send(`
       <html>
         <head><meta charset="UTF-8"><title>تم تسجيل الدخول</title></head>
         <body>
           <p>✅ تم تسجيل الدخول بنجاح! سيتم تحويلك الآن...</p>
           <script>
-            setTimeout(() => window.location.href = '/?from=auth', 1500);
+            // حفظ العودة للجلسة
+            sessionStorage.setItem('returnFromAuth', 'true');
+            // إعادة التوجيه إلى الصفحة الأصلية
+            setTimeout(() => window.location.href = '${redirectAfter}', 1500);
           </script>
         </body>
       </html>
     `);
+
   } catch (error) {
     console.error('❌ خطأ في تبادل الرمز:', error.response?.data || error.message);
     res.status(500).send('فشل في تسجيل الدخول إلى Google');
   }
 });
 
+// ===============================
+// 4️⃣ جلب المدونات
+// ===============================
 app.get('/blogs', async (req, res) => {
   const token = req.cookies.blogger_token;
   if (!token) return res.status(401).json({ error: '❌ غير مصرح. قم بتسجيل الدخول أولًا.' });
@@ -108,8 +140,9 @@ app.get('/blogs', async (req, res) => {
   }
 });
 
-
-// ✅ نشر مقال
+// ===============================
+// 5️⃣ نشر مقال إلى Blogger
+// ===============================
 app.post('/publish', async (req, res) => {
   try {
     const { title, content, blogId } = req.body;
@@ -118,12 +151,11 @@ app.post('/publish', async (req, res) => {
     if (!token) return res.status(401).json({ error: '❌ غير مصرح. قم بتسجيل الدخول أولًا.' });
     if (!blogId) return res.status(400).json({ error: '❌ لم يتم تحديد مدونة للنشر' });
 
-    const postRes = await axios.post(`https://www.googleapis.com/blogger/v3/blogs/${blogId}/posts/`, {
-      title,
-      content,
-    }, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const postRes = await axios.post(
+      `https://www.googleapis.com/blogger/v3/blogs/${blogId}/posts/`,
+      { title, content },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
 
     return res.json({ url: postRes.data.url });
 
@@ -133,9 +165,10 @@ app.post('/publish', async (req, res) => {
   }
 });
 
- 
-
- app.post('/publish-wordpress', async (req, res) => {
+// ===============================
+// 6️⃣ نشر مقال إلى WordPress
+// ===============================
+app.post('/publish-wordpress', async (req, res) => {
   const { url, username, password, title, content } = req.body;
 
   if (!url || !username || !password || !title || !content) {
@@ -157,47 +190,41 @@ app.post('/publish', async (req, res) => {
     res.status(500).json({ error: 'فشل في النشر إلى WordPress' });
   }
 });
- 
-// ✅ ملفات static
-app.use(express.static(path.join(__dirname, 'public')));
 
+// ===============================
+// 7️⃣ توليد المقال وإعادة صياغته
+// ===============================
 app.post('/generate-article', async (req, res) => {
   const { topic, language = 'ar' } = req.body;
 
- const prompt =
-  language === 'en'
-    ? `Write a high-quality blog article in English about: ${topic}. Do not include a sources section.`
-    : `اكتب مقالة عربية عالية الجودة حول: ${topic}. لا تضف قسم المصادر.`;
+  const prompt =
+    language === 'en'
+      ? `Write a high-quality blog article in English about: ${topic}. Do not include a sources section.`
+      : `اكتب مقالة عربية عالية الجودة حول: ${topic}. لا تضف قسم المصادر.`;
 
-
-  try {
-    // 🟢 1. توليد المحتوى الأساسي
+   try {
+    // 🟢 توليد المحتوى الأساسي
     const geminiResponse = await axios.post(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=' + process.env.GEMINI_API_KEY,
-      {
-        contents: [{ parts: [{ text: prompt }] }],
-      }
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`,
+      { contents: [{ parts: [{ text: prompt }] }] }
     );
 
     const rawText = geminiResponse.data.candidates?.[0]?.content?.parts?.[0]?.text || 'لم يتم توليد محتوى.';
     const title = rawText.split('\n')[0].replace(/^#+/, '').trim();
 
-    // 🟡 2. إعادة الصياغة للحصول على نسخة فريدة
+    // 🟡 إعادة الصياغة
     const rephrasePrompt =
       language === 'en'
         ? `Paraphrase the following blog article to make it unique, human-like, and SEO-optimized:\n\n${rawText}`
         : `أعد صياغة المقال التالي بأسلوب حصري وطبيعي ومتوافق مع معايير السيو:\n\n${rawText}`;
 
     const paraphrasedRes = await axios.post(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=' + process.env.GEMINI_API_KEY,
-      {
-        contents: [{ parts: [{ text: rephrasePrompt }] }],
-      }
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`,
+      { contents: [{ parts: [{ text: rephrasePrompt }] }] }
     );
 
-const finalText = paraphrasedRes.data.candidates?.[0]?.content?.parts?.[0]?.text || rawText;
-res.json({ title, content: finalText });
-
+    const finalText = paraphrasedRes.data.candidates?.[0]?.content?.parts?.[0]?.text || rawText;
+    res.json({ title, content: finalText });
 
   } catch (error) {
     console.error('❌ خطأ في توليد أو إعادة صياغة المقال:', error.response?.data || error.message);
@@ -205,8 +232,12 @@ res.json({ title, content: finalText });
   }
 });
 
+// ===============================
+// 8️⃣ ملفات Static
+// ===============================
+app.use(express.static(path.join(__dirname, 'public')));
 
-// ✅ بدء الخادم
+// ✅ تشغيل الخادم
 app.listen(PORT, () => {
   console.log(`✅ الخادم يعمل على http://localhost:${PORT}`);
 });
