@@ -23,7 +23,7 @@ const {
  
 app.use(cors({
   origin: [
-    'https://bestsitesfor.com',
+    'https://www.bestsitesfor.com',
     'capacitor://localhost',
     'http://localhost:3000',
     'http://127.0.0.1:5500',
