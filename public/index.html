@@ -187,16 +187,7 @@ function stripHTML(html) {
     alert('❌ خطأ في الاتصال بالخادم');
   }
 }
-
-function generateMetaTags(content, topic) {
-  const description = content.replace(/<[^>]+>/g, '').trim().slice(0, 150) + '...';
-const keywords = extractKeywords(topic, currentCategory, language);
-  return `
-<meta name="description" content="${description}">
-<meta name="keywords" content="${keywords}">
-`;
-}
-
+ 
 async function generateArticles() {
   const articlesContainer = document.getElementById('articlesOutput');
 
@@ -240,10 +231,7 @@ const content = await fetchArticle(topic, currentCategory, language);
         updateProgress(i * stepWeight + 20);
        const articleBodyContent = content;
        const title = articleBodyContent.split('\n')[0].replace(/^#+/, '').trim(); // توليد العنوان من أول سطر
-const metaTags = generateMetaTags(articleBodyContent, topic, title, '', language);
-const htmlContent = metaTags + cleanHTMLContent(articleBodyContent, language);
-
-
+const htmlContent = cleanHTMLContent(articleBodyContent, language);
 const safeFileName = sanitizeFileName(`مقال_${i + 1}_${topic.slice(0, 40)}`);
         zip.file(`${safeFileName}.txt`, htmlContent);
 

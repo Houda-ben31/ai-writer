@@ -91,69 +91,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // 2️⃣ إظهار الواجهة الرئيسية إذا وجد API Key
   if (apiKey) toggleMainUI();
 });
-
-
-function generateMetaTags(content, topic, title, _unused = '', language = 'ar') {
-  // ✅ لا تضف الوسوم إذا كانت موجودة مسبقًا في المقال
-  if (content.includes('<meta name="description"') || content.includes('<script type="application/ld+json">')) {
-    return ''; // تجاهل الإضافة
-  }
-
-  const plainText = content.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
-  const description = plainText.slice(0, 160);
-  const keywords = extractKeywords(topic, currentCategory, language);
-const url = `https://bestsitesfor.com/articles/${encodeURIComponent(title.trim())}`;
-  const image = 'https://bestsitesfor.com/assets/article-cover.jpg';
-  const date = new Date().toISOString();
-
-  return `
-<!-- ✅ Meta SEO Tags -->
-<meta name="description" content="${description} - اقرأ الآن لتتعرف على المزيد.">
-<meta name="keywords" content="${keywords}">
-<meta name="robots" content="index, follow">
-<meta name="author" content="AI Writer Tool">
-
-<!-- ✅ Open Graph Tags -->
-<meta property="og:title" content="${title}">
-<meta property="og:description" content="${description}">
-<meta property="og:type" content="article">
-<meta property="og:url" content="${url}">
-<meta property="og:image" content="${image}">
-<meta property="og:locale" content="${language === 'en' ? 'en_US' : 'ar_AR'}">
-
-<!-- ✅ Twitter Card -->
-<meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="${title}">
-<meta name="twitter:description" content="${description}">
-<meta name="twitter:image" content="${image}">
-
-<!-- ✅ JSON-LD Structured Data -->
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "Article",
-  "headline": "${title}",
-  "description": "${description}",
-  "image": "${image}",
-  "author": {
-    "@type": "Organization",
-    "name": "AI Writer Tool"
-  },
-  "publisher": {
-    "@type": "Organization",
-    "name": "AI Writer Tool",
-    "logo": {
-      "@type": "ImageObject",
-      "url": "https://bestsitesfor.com/favicon.ico"
-    }
-  },
-  "mainEntityOfPage": "${url}",
-  "datePublished": "${date}"
-}
-</script>`;
-}
-
-
+ 
+ 
 function openWpModal(index) {
   document.getElementById('wordpressLoginModal').classList.remove('hidden');
   const saved = sessionStorage.getItem('wpCredentials');
