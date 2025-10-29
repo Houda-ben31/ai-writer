@@ -27,6 +27,7 @@ app.use(cors({
     'capacitor://localhost',
     'http://localhost:3000',
     'http://127.0.0.1:5500',
+    'https://www.seoanalyzertool.online',
     'https://ai-writer-sgka.onrender.com',
     'http://localhost:5500'
   ],

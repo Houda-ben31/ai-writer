@@ -36,13 +36,22 @@
 <h1>أنشئ مقالات احترافية باستخدام أداة الكتابة الذكية - AI Writer</h1>
 </header>
 
-       <div id="apiSection">
+       <div id="apiSection"> 
   <form onsubmit="return false;" class="input-group">
-    <label>مفتاح API الخاص بك</label>
-    <input type="password" id="apiKey" placeholder="أدخل مفتاح Gemini API">
-    <button class="generate-btn mt-2" onclick="saveAPIKey()">حفظ المفتاح</button>
+    <div class="api-input">
+      <label for="apiKey">🔑 مفتاح API الخاص بك</label>
+      <small style="display:block; margin:5px 0; color:#555;">
+        يمكنك الحصول عليه من 
+        <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer">
+          Google AI Studio
+        </a>
+      </small>
+      <input type="password" id="apiKey" placeholder="أدخل مفتاح Gemini API">
+      <button class="generate-btn mt-2" onclick="saveAPIKey()">حفظ المفتاح</button>
+    </div>
   </form>
 </div>
+
     
 
         <div id="mainUI" class="hidden">
