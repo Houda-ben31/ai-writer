@@ -304,7 +304,7 @@ function displayArticleInPage(container, index, title, contentHtml, downloadUrl,
   footerDiv.style.marginTop = '20px';
 
   const footerLink = document.createElement('a');
-  footerLink.href = 'https://ribhonline31.blogspot.com';
+  footerLink.href = 'https://www.seoanalyzertool.online';
   footerLink.target = '_blank';
   footerLink.textContent = '🔗 زوروا موقعنا: ribhonline - أدوات مفيدة';
   footerLink.style.cssText = `
@@ -335,7 +335,7 @@ function displayArticleInPage(container, index, title, contentHtml, downloadUrl,
     const temp = document.createElement('div');
     temp.innerHTML = contentHtml;
     let plainText = temp.innerText.trim();
-    plainText += `\n\n🔗 زوروا موقعنا: ribhonline - أدوات مفيدة\nhttps://ribhonline31.blogspot.com`;
+    plainText += `\n\n🔗 زوروا موقعنا: ribhonline - أدوات مفيدة\nhttps://www.seoanalyzertool.online`;
     downloadAsText(fileName, plainText);
   });
 
@@ -496,7 +496,7 @@ function copyArticleToClipboard(htmlContent, button) {
 let text = tempElement.innerText.trim();
 
 // ✅ إضافة رابط موقعك في النهاية
-text += `\n\n🔗 زوروا موقعنا: ribhonline - أدوات مفيدة\nhttps://ribhonline31.blogspot.com`;
+text += `\n\n🔗 زوروا موقعنا: ribhonline - أدوات مفيدة\nhttps://www.seoanalyzertool.online`;
 
 navigator.clipboard.writeText(text).then(() => {
 
@@ -574,7 +574,7 @@ function downloadAsPDF(fileName, htmlContent) {
 
         <div class="source-link">
           🔗 زوروا موقعنا: 
-          <a href="https://ribhonline31.blogspot.com" target="_blank">ribhonline - أدوات مفيدة</a>
+          <a href="https://www.seoanalyzertool.online" target="_blank">ribhonline - أدوات مفيدة</a>
         </div>
       </body>
     </html>
